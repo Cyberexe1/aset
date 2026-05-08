@@ -1,82 +1,106 @@
-// Dual AI Provider: AWS Bedrock (primary) + Groq (fallback)
+// Multi-key Groq provider with round-robin rotation and 429 fallback
 const Groq = require('groq-sdk');
 
 class AIProvider {
   constructor(config = {}) {
-    this.provider = config.provider || process.env.AI_PROVIDER || 'groq';
-    this.groqApiKey = config.groqApiKey || process.env.GROQ_API_KEY;
-    
-    // Initialize Groq
-    if (this.groqApiKey) {
-      this.groq = new Groq({ apiKey: this.groqApiKey });
+    // Collect all Groq keys from config or env
+    const keys = [
+      config.groqApiKey   || process.env.GROQ_API_KEY,
+      config.groqApiKey2  || process.env.GROQ_API_KEY_2,
+      config.groqApiKey3  || process.env.GROQ_API_KEY_3,
+      config.groqApiKey4  || process.env.GROQ_API_KEY_4,
+    ].filter(Boolean);
+
+    if (keys.length === 0) {
+      console.warn('⚠️  No Groq API keys configured');
     }
-    
-    // Initialize Bedrock (lazy load)
-    this.bedrock = null;
-    this.bedrockRegion = config.bedrockRegion || process.env.AWS_REGION || 'us-east-1';
-    
-    console.log(`✅ AI Provider initialized: ${this.provider.toUpperCase()}`);
+
+    // Create one Groq client per key
+    this.groqClients = keys.map(key => new Groq({ apiKey: key }));
+    this.keyCount = this.groqClients.length;
+
+    // Round-robin index — shared across all requests
+    this.currentIndex = 0;
+
+    // Track which keys are rate-limited and when they recover
+    // { index: recoverAtTimestamp }
+    this.rateLimitedUntil = {};
+
+    console.log(`✅ AI Provider initialized: ${this.keyCount} Groq key(s) loaded`);
   }
 
-  async initBedrock() {
-    if (this.bedrock) return;
-    
-    try {
-      const { BedrockRuntimeClient, InvokeModelCommand } = require('@aws-sdk/client-bedrock-runtime');
-      this.bedrock = new BedrockRuntimeClient({ region: this.bedrockRegion });
-      this.InvokeModelCommand = InvokeModelCommand;
-      console.log(`✅ AWS Bedrock initialized (${this.bedrockRegion})`);
-    } catch (error) {
-      console.warn('⚠️  AWS Bedrock SDK not available:', error.message);
-      throw error;
+  // Get next available key using round-robin, skipping rate-limited ones
+  _getNextClient() {
+    const now = Date.now();
+    const start = this.currentIndex;
+
+    for (let i = 0; i < this.keyCount; i++) {
+      const idx = (start + i) % this.keyCount;
+      const blockedUntil = this.rateLimitedUntil[idx] || 0;
+
+      if (now >= blockedUntil) {
+        // Advance the shared pointer for next call
+        this.currentIndex = (idx + 1) % this.keyCount;
+        return { client: this.groqClients[idx], index: idx };
+      }
     }
+
+    // All keys are rate-limited — find the one that recovers soonest
+    let soonestIdx = 0;
+    let soonestTime = Infinity;
+    for (let i = 0; i < this.keyCount; i++) {
+      if ((this.rateLimitedUntil[i] || 0) < soonestTime) {
+        soonestTime = this.rateLimitedUntil[i] || 0;
+        soonestIdx = i;
+      }
+    }
+
+    console.warn(`⚠️  All Groq keys rate-limited. Soonest recovery in ${Math.ceil((soonestTime - now) / 1000)}s`);
+    this.currentIndex = (soonestIdx + 1) % this.keyCount;
+    return { client: this.groqClients[soonestIdx], index: soonestIdx };
+  }
+
+  // Mark a key as rate-limited for 60 seconds
+  _markRateLimited(index) {
+    this.rateLimitedUntil[index] = Date.now() + 60_000;
+    console.warn(`⚠️  Groq key #${index + 1} rate-limited, cooling down for 60s`);
   }
 
   async generateCompletion(prompt, options = {}) {
-    const maxRetries = options.maxRetries || 2;
-    let lastError;
+    // Try each key at most once, rotating on 429
+    for (let attempt = 0; attempt < this.keyCount; attempt++) {
+      const { client, index } = this._getNextClient();
 
-    // Try primary provider
-    try {
-      if (this.provider === 'bedrock') {
-        return await this.generateWithBedrock(prompt, options);
-      } else {
-        return await this.generateWithGroq(prompt, options);
+      try {
+        return await this._callGroq(client, index, prompt, options);
+      } catch (error) {
+        const is429 = error?.status === 429 ||
+                      error?.message?.includes('429') ||
+                      error?.message?.toLowerCase().includes('rate limit');
+
+        if (is429) {
+          this._markRateLimited(index);
+          console.log(`🔄 Retrying with next Groq key (attempt ${attempt + 2}/${this.keyCount})...`);
+          continue; // try next key
+        }
+
+        // Non-rate-limit error — throw immediately
+        throw error;
       }
-    } catch (error) {
-      console.warn(`⚠️  ${this.provider} failed:`, error.message);
-      lastError = error;
     }
 
-    // Fallback to alternative provider
-    try {
-      const fallbackProvider = this.provider === 'bedrock' ? 'groq' : 'bedrock';
-      console.log(`🔄 Falling back to ${fallbackProvider}...`);
-      
-      if (fallbackProvider === 'bedrock') {
-        return await this.generateWithBedrock(prompt, options);
-      } else {
-        return await this.generateWithGroq(prompt, options);
-      }
-    } catch (fallbackError) {
-      console.error(`❌ Both providers failed`);
-      throw new Error(`AI generation failed: ${lastError.message} | Fallback: ${fallbackError.message}`);
-    }
+    throw new Error('All Groq API keys are rate-limited. Please try again shortly.');
   }
 
-  async generateWithGroq(prompt, options = {}) {
-    if (!this.groq) {
-      throw new Error('Groq API key not configured');
-    }
+  async _callGroq(client, index, prompt, options = {}) {
+    const model      = options.model       || 'llama-3.3-70b-versatile';
+    const temperature = options.temperature ?? 0.3;
+    const maxTokens  = options.maxTokens   || 2000;
 
-    const model = options.model || 'llama-3.3-70b-versatile';
-    const temperature = options.temperature || 0.3;
-    const maxTokens = options.maxTokens || 2000;
-
-    const response = await this.groq.chat.completions.create({
-      model: model,
+    const response = await client.chat.completions.create({
+      model,
       messages: [{ role: 'user', content: prompt }],
-      temperature: temperature,
+      temperature,
       max_tokens: maxTokens,
       response_format: options.jsonMode ? { type: 'json_object' } : undefined
     });
@@ -84,53 +108,12 @@ class AIProvider {
     return {
       content: response.choices[0].message.content,
       provider: 'groq',
-      model: model,
+      model,
+      keyIndex: index + 1, // 1-based for logging
       usage: {
-        inputTokens: response.usage.prompt_tokens,
+        inputTokens:  response.usage.prompt_tokens,
         outputTokens: response.usage.completion_tokens,
-        totalTokens: response.usage.total_tokens
-      }
-    };
-  }
-
-  async generateWithBedrock(prompt, options = {}) {
-    await this.initBedrock();
-
-    const modelId = options.model || 'anthropic.claude-3-sonnet-20240229-v1:0';
-    const temperature = options.temperature || 0.3;
-    const maxTokens = options.maxTokens || 2000;
-
-    // Format request for Claude
-    const requestBody = {
-      anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: maxTokens,
-      temperature: temperature,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
-    };
-
-    const command = new this.InvokeModelCommand({
-      modelId: modelId,
-      contentType: 'application/json',
-      accept: 'application/json',
-      body: JSON.stringify(requestBody)
-    });
-
-    const response = await this.bedrock.send(command);
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-
-    return {
-      content: responseBody.content[0].text,
-      provider: 'bedrock',
-      model: modelId,
-      usage: {
-        inputTokens: responseBody.usage.input_tokens,
-        outputTokens: responseBody.usage.output_tokens,
-        totalTokens: responseBody.usage.input_tokens + responseBody.usage.output_tokens
+        totalTokens:  response.usage.total_tokens
       }
     };
   }
@@ -138,7 +121,6 @@ class AIProvider {
   // Batch generation for multiple prompts
   async generateBatch(prompts, options = {}) {
     const results = [];
-    
     for (const prompt of prompts) {
       try {
         const result = await this.generateCompletion(prompt, options);
@@ -147,18 +129,21 @@ class AIProvider {
         results.push({ success: false, error: error.message });
       }
     }
-    
     return results;
   }
 
-  // Get provider info
+  // Provider info for debugging
   getProviderInfo() {
+    const now = Date.now();
     return {
-      primary: this.provider,
-      fallback: this.provider === 'bedrock' ? 'groq' : 'bedrock',
-      groqAvailable: !!this.groq,
-      bedrockAvailable: !!this.bedrock,
-      region: this.bedrockRegion
+      provider: 'groq',
+      totalKeys: this.keyCount,
+      currentIndex: this.currentIndex,
+      keyStatus: Array.from({ length: this.keyCount }, (_, i) => ({
+        key: i + 1,
+        available: now >= (this.rateLimitedUntil[i] || 0),
+        cooldownRemainingMs: Math.max(0, (this.rateLimitedUntil[i] || 0) - now)
+      }))
     };
   }
 }

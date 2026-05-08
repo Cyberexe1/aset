@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api as apiService } from '../services/api';
 import { chatService } from '../services/chatService';
+import { generateVerificationReport } from '../services/reportGenerator';
 
 const ACCEPTED_TYPES = '.pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp,.bmp,.tiff';
 
@@ -303,82 +304,260 @@ export const YouTubeVerifier = ({ onClose }) => {
 
 // ── Shared Verification Report ───────────────────────────────────────────────
 const VerificationReport = ({ result, onReset }) => {
-  const [expanded, setExpanded] = useState(null);
+  const [expanded, setExpanded]     = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [pdfUrl, setPdfUrl]         = useState(null);   // blob URL for viewer
+  const [viewing, setViewing]       = useState(false);  // modal open
+
+  // Generate PDF blob URL for the viewer (doesn't trigger download)
+  const handleView = async () => {
+    try {
+      const { generateVerificationReportBlob } = await import('../services/reportGenerator');
+      const blob = generateVerificationReportBlob(result);
+      const url  = URL.createObjectURL(blob);
+      setPdfUrl(url);
+      setViewing(true);
+    } catch (err) {
+      console.error('PDF preview failed:', err);
+    }
+  };
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      generateVerificationReport(result);
+    } catch (err) {
+      console.error('Report generation failed:', err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const closeViewer = () => {
+    setViewing(false);
+    if (pdfUrl) { URL.revokeObjectURL(pdfUrl); setPdfUrl(null); }
+  };
 
   return (
-    <div style={{ marginTop: 8, position: 'relative', zIndex: 2, background: 'rgba(0,0,0,0.7)', borderRadius: 16, padding: '4px' }}>
-      {/* Header */}
-      <div style={{
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 16,
-        padding: '20px 24px',
-        marginBottom: 16
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-          <div>
-            <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>
-              {result.filename || result.videoId || 'Verification Report'}
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 2 }}>
-              {result.totalClaims} claims identified · {result.processingTimeMs}ms
-              {result.pages ? ` · ${result.pages} pages` : ''}
-              {result.extractionMethod ? ` · ${result.extractionMethod}` : ''}
-            </div>
-          </div>
-          <button onClick={onReset} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.5)', borderRadius: 8, padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}>
-            New
-          </button>
-        </div>
-        <TrustMeter score={result.overallTrustScore} />
-      </div>
-
-      {/* Claims list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {result.verifiedClaims.map((item, i) => (
+    <>
+      {/* ── PDF Viewer Modal ── */}
+      {viewing && (
+        <div
+          onClick={closeViewer}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.88)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: '20px',
+          }}
+        >
+          {/* Modal box */}
           <div
-            key={i}
+            onClick={e => e.stopPropagation()}
             style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 12,
-              padding: '14px 18px',
-              cursor: 'pointer',
-              transition: 'border-color 0.2s'
+              width: '100%', maxWidth: 900,
+              height: '90vh',
+              background: '#0a0e18',
+              border: '1px solid rgba(0,212,170,0.25)',
+              borderRadius: 16,
+              display: 'flex', flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
             }}
-            onClick={() => setExpanded(expanded === i ? null : i)}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-              <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.5, flex: 1 }}>
-                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, marginRight: 8 }}>#{i + 1}</span>
-                {item.claim}
+            {/* Modal header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '14px 20px',
+              borderBottom: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(0,212,170,0.06)',
+              flexShrink: 0,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/>
+                  <path d="M14 2v6h6M8 13h8M8 17h5"/>
+                </svg>
+                <span style={{ color: '#00d4aa', fontWeight: 600, fontSize: 14 }}>
+                  ASET Verification Report
+                </span>
+                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>
+                  {result.filename || result.videoId || 'Report'}
+                </span>
               </div>
-              <VerdictBadge verdict={item.verdict} score={item.score} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                {/* Download from viewer */}
+                <button
+                  onClick={handleDownload}
+                  style={{
+                    background: 'rgba(0,212,170,0.12)',
+                    border: '1px solid rgba(0,212,170,0.3)',
+                    color: '#00d4aa', borderRadius: 8,
+                    padding: '6px 14px', fontSize: 12, fontWeight: 600,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Download
+                </button>
+                {/* Close */}
+                <button
+                  onClick={closeViewer}
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    color: 'rgba(255,255,255,0.6)', borderRadius: 8,
+                    padding: '6px 12px', fontSize: 12, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                  Close
+                </button>
+              </div>
             </div>
 
-            {expanded === i && (
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                {item.reason && (
-                  <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, marginBottom: 10, lineHeight: 1.5 }}>
-                    {item.reason}
-                  </div>
-                )}
-                {item.sources?.length > 0 && (
-                  <div>
-                    <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Supporting Papers</div>
-                    {item.sources.map((s, j) => (
-                      <div key={j} style={{ background: 'rgba(0,255,170,0.05)', border: '1px solid rgba(0,255,170,0.15)', borderRadius: 8, padding: '8px 12px', marginBottom: 6, fontSize: 12 }}>
-                        <div style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, marginBottom: 2 }}>{s.title}</div>
-                        <div style={{ color: 'rgba(255,255,255,0.4)' }}>{s.topic} · {s.year || 'n/a'}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* PDF iframe */}
+            <iframe
+              src={pdfUrl}
+              style={{ flex: 1, border: 'none', width: '100%', background: '#1a1a2e' }}
+              title="ASET Verification Report"
+            />
           </div>
-        ))}
+        </div>
+      )}
+
+      {/* ── Main report card ── */}
+      <div style={{ marginTop: 8, position: 'relative', zIndex: 2, background: 'rgba(0,0,0,0.7)', borderRadius: 16, padding: '4px' }}>
+        {/* Header */}
+        <div style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 16,
+          padding: '20px 24px',
+          marginBottom: 16
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+            <div>
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>
+                {result.filename || result.videoId || 'Verification Report'}
+              </div>
+              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, marginTop: 2 }}>
+                {result.totalClaims} claims identified · {result.processingTimeMs}ms
+                {result.pages ? ` · ${result.pages} pages` : ''}
+                {result.extractionMethod ? ` · ${result.extractionMethod}` : ''}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+
+              {/* View Report Button */}
+              <button
+                onClick={handleView}
+                style={{
+                  background: 'rgba(99,102,241,0.15)',
+                  border: '1px solid rgba(99,102,241,0.4)',
+                  color: '#818cf8',
+                  borderRadius: 8, padding: '6px 14px',
+                  fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  transition: 'all 0.2s', whiteSpace: 'nowrap',
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/>
+                  <path d="M14 2v6h6M8 13h8M8 17h5"/>
+                </svg>
+                View Report
+              </button>
+
+              {/* Download Report Button */}
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                style={{
+                  background: downloading ? 'rgba(0,212,170,0.1)' : 'rgba(0,212,170,0.15)',
+                  border: '1px solid rgba(0,212,170,0.4)',
+                  color: '#00d4aa', borderRadius: 8,
+                  padding: '6px 14px', fontSize: 12, fontWeight: 600,
+                  cursor: downloading ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  transition: 'all 0.2s', whiteSpace: 'nowrap',
+                }}
+              >
+                {downloading ? <>⏳ Generating...</> : (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7 10 12 15 17 10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download PDF
+                  </>
+                )}
+              </button>
+
+              <button onClick={onReset} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.5)', borderRadius: 8, padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}>
+                New
+              </button>
+            </div>
+          </div>
+          <TrustMeter score={result.overallTrustScore} />
+        </div>
+
+        {/* Claims list */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {result.verifiedClaims.map((item, i) => (
+            <div
+              key={i}
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 12, padding: '14px 18px',
+                cursor: 'pointer', transition: 'border-color 0.2s'
+              }}
+              onClick={() => setExpanded(expanded === i ? null : i)}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.5, flex: 1 }}>
+                  <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, marginRight: 8 }}>#{i + 1}</span>
+                  {item.claim}
+                </div>
+                <VerdictBadge verdict={item.verdict} score={item.score} />
+              </div>
+
+              {expanded === i && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  {item.reason && (
+                    <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, marginBottom: 10, lineHeight: 1.5 }}>
+                      {item.reason}
+                    </div>
+                  )}
+                  {item.sources?.length > 0 && (
+                    <div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Supporting Papers</div>
+                      {item.sources.map((s, j) => (
+                        <div key={j} style={{ background: 'rgba(0,255,170,0.05)', border: '1px solid rgba(0,255,170,0.15)', borderRadius: 8, padding: '8px 12px', marginBottom: 6, fontSize: 12 }}>
+                          <div style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, marginBottom: 2 }}>{s.title}</div>
+                          <div style={{ color: 'rgba(255,255,255,0.4)' }}>{s.topic} · {s.year || 'n/a'}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 };

@@ -2,11 +2,11 @@ const AIProvider = require('./ai-provider');
 
 class ClaimVerifier {
   constructor(config = {}) {
-    // Support both old (apiKey) and new (config object) initialization
+    // Support legacy string init (apiKey only)
     if (typeof config === 'string') {
-      config = { groqApiKey: config, provider: 'groq' };
+      config = { groqApiKey: config };
     }
-    
+
     this.ai = new AIProvider(config);
     this.cache = new Map();
   }

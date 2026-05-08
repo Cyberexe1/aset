@@ -204,7 +204,7 @@ const LandingPage = ({ onGetStarted, isLoggedIn = false, onGoToApp }) => {
         <div className="hero-content">
           <div className="hero-badge">
             <Icon name="rocket" size={18} className="badge-icon" />
-            <span>Powered by 972K+ Research Papers</span>
+            <span>Powered by 1.2M+ Research Papers</span>
           </div>
           
           <div className="hero-logo">

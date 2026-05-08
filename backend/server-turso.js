@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@libsql/client');
 const ClaimVerifier = require('./claim-verifier');
@@ -13,22 +13,28 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize Claim Verifier with dual AI provider (Bedrock + Groq fallback)
-const AI_PROVIDER = process.env.AI_PROVIDER || 'groq'; // 'bedrock' or 'groq'
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
+// Initialize Claim Verifier with multi-key Groq rotation
+const groqKeys = [
+  process.env.GROQ_API_KEY,
+  process.env.GROQ_API_KEY_2,
+  process.env.GROQ_API_KEY_3,
+  process.env.GROQ_API_KEY_4,
+].filter(Boolean);
 
-if (!GROQ_API_KEY && AI_PROVIDER === 'groq') {
-  console.warn('⚠️  GROQ_API_KEY not set - claim verification may fail');
+if (groqKeys.length === 0) {
+  console.warn('⚠️  No GROQ API keys set - claim verification will fail');
+} else {
+  console.log(`✅ Loaded ${groqKeys.length} Groq API key(s)`);
 }
 
 const verifier = new ClaimVerifier({
-  provider: AI_PROVIDER,
-  groqApiKey: GROQ_API_KEY,
-  bedrockRegion: AWS_REGION
+  groqApiKey:  groqKeys[0],
+  groqApiKey2: groqKeys[1],
+  groqApiKey3: groqKeys[2],
+  groqApiKey4: groqKeys[3],
 });
 
-console.log(`✅ Claim verifier initialized (Primary: ${AI_PROVIDER.toUpperCase()}, Fallback: ${AI_PROVIDER === 'bedrock' ? 'Groq' : 'Bedrock'})`);
+console.log(`✅ Claim verifier initialized with ${groqKeys.length} key(s) + rotation + rate-limit fallback`);
 
 // Database client - supports both local SQLite (AWS) and Turso (development)
 const DATABASE_PATH = process.env.DATABASE_PATH;
@@ -1475,6 +1481,7 @@ app.post('/api/process-document', upload.single('file'), async (req, res) => {
       fileType: req.file.mimetype,
       pages,
       extractionMethod: method,
+      extractedText: text,
       totalClaims: claims.length,
       verifiedClaims,
       overallTrustScore: overallScore,
@@ -1492,6 +1499,83 @@ app.post('/api/process-document', upload.single('file'), async (req, res) => {
   }
 });
 
+// ─── YouTube Transcript Helper (multi-method, no API key) ───────────────────
+async function fetchYouTubeTranscript(videoId) {
+  const errors = [];
+
+  // Method 1: youtube-transcript package
+  try {
+    const { YoutubeTranscript } = require('youtube-transcript');
+    const segments = await YoutubeTranscript.fetchTranscript(videoId);
+    if (segments && segments.length > 0) {
+      const text = segments.map(s => s.text).join(' ')
+        .replace(/\s+/g, ' ').trim();
+      if (text.length >= 100) {
+        console.log(`[Transcript] Method 1 (youtube-transcript) succeeded: ${text.length} chars`);
+        return text;
+      }
+    }
+  } catch (e) {
+    errors.push(`youtube-transcript: ${e.message}`);
+  }
+
+  // Method 2: youtubei.js
+  try {
+    const { Innertube } = require('youtubei.js');
+    const yt = await Innertube.create({ retrieve_player: false });
+    const info = await yt.getInfo(videoId);
+    const transcriptData = await info.getTranscript();
+    if (transcriptData?.transcript?.content?.body?.initial_segments) {
+      const text = transcriptData.transcript.content.body.initial_segments
+        .map(s => s.snippet?.text || '')
+        .join(' ')
+        .replace(/\s+/g, ' ').trim();
+      if (text.length >= 100) {
+        console.log(`[Transcript] Method 2 (youtubei.js) succeeded: ${text.length} chars`);
+        return text;
+      }
+    }
+  } catch (e) {
+    errors.push(`youtubei.js: ${e.message}`);
+  }
+
+  // Method 3: Direct YouTube timedtext API (no auth needed for public videos)
+  try {
+    const pageRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept-Language': 'en-US,en;q=0.9'
+      }
+    });
+    const html = await pageRes.text();
+    const captionMatch = html.match(/"captionTracks":\s*(\[.*?\])/);
+    if (captionMatch) {
+      const tracks = JSON.parse(captionMatch[1].replace(/\\u0026/g, '&'));
+      const track = tracks.find(t => t.languageCode === 'en' && t.kind !== 'asr')
+                 || tracks.find(t => t.languageCode === 'en')
+                 || tracks.find(t => t.languageCode?.startsWith('en'))
+                 || tracks[0];
+      if (track?.baseUrl) {
+        const xmlRes = await fetch(track.baseUrl);
+        const xml = await xmlRes.text();
+        const text = xml
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+          .replace(/\s+/g, ' ').trim();
+        if (text.length >= 100) {
+          console.log(`[Transcript] Method 3 (timedtext API) succeeded: ${text.length} chars`);
+          return text;
+        }
+      }
+    }
+    errors.push('timedtext: no caption tracks found in page');
+  } catch (e) {
+    errors.push(`timedtext: ${e.message}`);
+  }
+
+  throw new Error(`All methods failed — ${errors.join(' | ')}`);
+}
 // ─── Mode 2: YouTube URL → Transcript → Claims → Verify ─────────────────────
 app.post('/api/process-youtube', async (req, res) => {
   const { url } = req.body;
@@ -1509,31 +1593,12 @@ app.post('/api/process-youtube', async (req, res) => {
 
     console.log(`[Mode2] Processing YouTube: ${videoId}`);
 
-    // Fetch transcript using Supadata API — works from any server IP, no OAuth needed
+    // Fetch transcript — multi-method fallback, no API key needed
     let text;
     try {
-      const supadataKey = process.env.SUPADATA_API_KEY;
-      if (!supadataKey) throw new Error('SUPADATA_API_KEY not configured');
-
-      const res = await fetch(
-        `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&text=true`,
-        { headers: { 'x-api-key': supadataKey } }
-      );
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Supadata API error: ${res.status}`);
-      }
-
-      const data = await res.json();
-      text = data.content || data.text || '';
-
-      if (!text || text.length < 100) {
-        return res.status(422).json({ error: 'Transcript too short or unavailable for this video' });
-      }
-
+      text = await fetchYouTubeTranscript(videoId);
     } catch (transcriptErr) {
-      console.error('[Mode2] Transcript error:', transcriptErr.message);
+      console.error('[Mode2] All transcript methods failed:', transcriptErr.message);
       return res.status(422).json({ error: 'Could not extract transcript: ' + transcriptErr.message });
     }
 
@@ -1593,7 +1658,7 @@ app.post('/api/process-youtube', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Server running on port ${PORT}`);
   console.log(`📊 Database: ${DATABASE_PATH ? 'Local SQLite' : 'Turso (remote)'}`);
-  console.log(`🤖 AI Provider: ${AI_PROVIDER.toUpperCase()} (fallback: ${AI_PROVIDER === 'bedrock' ? 'Groq' : 'Bedrock'})`);
+  console.log(`🤖 AI Provider: Groq (${groqKeys.length} key(s) with rotation)`);
   console.log(`🔗 Health: http://localhost:${PORT}/health`);
   console.log(`🔍 Search: http://localhost:${PORT}/api/search?query=black+holes\n`);
 });
