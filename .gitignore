@@ -6,6 +6,7 @@ package-lock.json
 .env
 .env.local
 .env.production
+*.pdf
 
 # Database files (too large for git - host separately)
 database/topics/

@@ -1,392 +1,33 @@
-﻿import { jsPDF } from "jspdf";
+import { jsPDF } from "jspdf";
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ASET Verification Report — Premium PDF Generator
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
-  // Page backgrounds
-  coverBg:      [8,   10,  18],
-  pageBg:       [11,  14,  22],
-  cardBg:       [18,  23,  35],
-  cardBgAlt:    [22,  28,  42],
-  rowEven:      [16,  20,  30],
-  rowOdd:       [20,  25,  37],
-
-  // Brand
-  accent:       [0,   212, 170],   // #00d4aa teal
-  accentDark:   [0,   120, 96],
-  accentGlow:   [0,   255, 200],
-
-  // Text
-  textPrimary:  [240, 244, 252],
-  textSecondary:[170, 180, 200],
-  textMuted:    [100, 115, 138],
-
-  // Borders
-  borderSoft:   [30,  40,  58],
-  borderMid:    [45,  58,  80],
-
-  // Verdict colors
-  supported:    [0,   210, 150],
-  contradicted: [230, 55,  55],
-  inconclusive: [220, 150, 10],
-  unverifiable: [85,  100, 125],
+  bg: [255, 255, 255],
+  textPrimary: [30, 41, 59],      // Slate 800
+  textSecondary: [71, 85, 105],   // Slate 600
+  textMuted: [148, 163, 184],     // Slate 400
+  border: [226, 232, 240],        // Slate 200
+  accent: [15, 118, 110],         // Teal 700
+  supported: [16, 185, 129],      // Emerald 500
+  contradicted: [239, 68, 68],    // Red 500
+  inconclusive: [245, 158, 11],   // Amber 500
+  unverifiable: [148, 163, 184],  // Slate 400
 };
 
-// ─── Verdict helpers ──────────────────────────────────────────────────────────
-function vColor(verdict) {
+function getVerdictColor(verdict) {
   const v = (verdict || "").toLowerCase();
-  if (v.includes("contradict"))   return C.contradicted;
+  if (v.includes("contradict")) return C.contradicted;
   if (v.includes("inconclusive")) return C.inconclusive;
-  if (v.includes("supported"))    return C.supported;
+  if (v.includes("supported")) return C.supported;
   return C.unverifiable;
 }
 
-function vLabel(verdict, score) {
-  const v = verdict || "Unverifiable";
-  return score > 0 ? `${v}  ${score}%` : v;
-}
-
-function scoreCol(score) {
-  if (score >= 70) return C.supported;
-  if (score >= 40) return C.inconclusive;
-  return C.contradicted;
-}
-
-function overallV(score) {
-  if (score >= 80) return "Strongly Supported";
-  if (score >= 60) return "Supported";
-  if (score >= 40) return "Inconclusive";
-  if (score > 0)   return "Contradicted";
-  return "Unverifiable";
-}
-
-// ─── Layout ───────────────────────────────────────────────────────────────────
-const PW = 210, PH = 297;
-const ML = 18, MR = 18, CW = PW - ML - MR;
-const HDR = 20, FTR = 13;
-const CT = HDR + 7, CB = PH - FTR - 5;
-
-function wrap(doc, text, w) {
-  return doc.splitTextToSize(String(text || ""), w);
-}
-
-// ─── Gradient band (simulated with stacked rects) ────────────────────────────
-function gradientBand(doc, x, y, w, h, colorA, colorB, steps) {
-  steps = steps || 20;
-  for (let i = 0; i < steps; i++) {
-    const t = i / steps;
-    doc.setFillColor(
-      Math.round(colorA[0] + (colorB[0] - colorA[0]) * t),
-      Math.round(colorA[1] + (colorB[1] - colorA[1]) * t),
-      Math.round(colorA[2] + (colorB[2] - colorA[2]) * t)
-    );
-    doc.rect(x, y + (h / steps) * i, w, h / steps + 0.5, "F");
-  }
-}
-
-// ─── Header ───────────────────────────────────────────────────────────────────
-function drawHeader(doc, pageNum, total) {
-  // Background
-  doc.setFillColor(...C.coverBg);
-  doc.rect(0, 0, PW, HDR, "F");
-
-  // Left accent bar with glow effect (two rects)
-  doc.setFillColor(...C.accentDark);
-  doc.rect(0, 0, 4, HDR, "F");
-  doc.setFillColor(...C.accent);
-  doc.rect(0, 0, 2.5, HDR, "F");
-
-  // Logo dots
-  const dots = [
-    [0,0,0,1,2,3],[0,0,1,1,2,2],[0,0,1,1,2,2],
-    [0,1,1,1,2,2],[0,1,1,0,0,0],[0,0,0,0,0,0],
-  ];
-  dots.forEach((row, ri) => row.forEach((val, ci) => {
-    if (!val) return;
-    const a = val === 3 ? 255 : val === 2 ? 180 : 90;
-    doc.setFillColor(a, a, a);
-    doc.circle(8 + ci * 2.3, 4 + ri * 2.3, 1.5 * (val / 3), "F");
-  }));
-
-  // ASET wordmark
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(...C.accent);
-  doc.text("ASET", 24, 11);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(...C.textMuted);
-  doc.text("Academic Safety & Evidencing Truth", 24, 15.5);
-
-  // Divider
-  doc.setDrawColor(...C.accentDark);
-  doc.setLineWidth(0.4);
-  doc.line(0, HDR, PW, HDR);
-
-  // Page info
-  doc.setFontSize(7);
-  doc.setTextColor(...C.textMuted);
-  doc.text(`${pageNum} / ${total}`, PW - MR, 11, { align: "right" });
-  doc.text("aset-ai.com", PW - MR, 15.5, { align: "right" });
-}
-
-// ─── Footer ───────────────────────────────────────────────────────────────────
-function drawFooter(doc, generatedAt) {
-  doc.setFillColor(...C.coverBg);
-  doc.rect(0, PH - FTR, PW, FTR, "F");
-
-  // Top border with accent
-  doc.setDrawColor(...C.accentDark);
-  doc.setLineWidth(0.4);
-  doc.line(0, PH - FTR, PW, PH - FTR);
-
-  // Bottom accent line
-  doc.setFillColor(...C.accent);
-  doc.rect(0, PH - 1.8, PW, 1.8, "F");
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(...C.textMuted);
-  doc.text("Generated by ASET  ·  AI-Powered Scientific Claim Verification", ML, PH - 4.5);
-  doc.text(generatedAt, PW - MR, PH - 4.5, { align: "right" });
-}
-
-// ─── Score ring ───────────────────────────────────────────────────────────────
-function drawRing(doc, cx, cy, r, score, color) {
-  const steps = 80;
-  const s0 = -Math.PI / 2;
-  const s1 = s0 + (score / 100) * 2 * Math.PI;
-
-  // Track
-  doc.setDrawColor(30, 40, 58);
-  doc.setLineWidth(4);
-  doc.circle(cx, cy, r, "S");
-
-  // Fill arc
-  doc.setDrawColor(...color);
-  doc.setLineWidth(4);
-  for (let i = 0; i < steps; i++) {
-    const a1 = s0 + (i / steps) * (s1 - s0);
-    const a2 = s0 + ((i + 1) / steps) * (s1 - s0);
-    doc.line(cx + r * Math.cos(a1), cy + r * Math.sin(a1),
-             cx + r * Math.cos(a2), cy + r * Math.sin(a2));
-  }
-
-  // Inner circle fill
-  doc.setFillColor(...C.cardBg);
-  doc.circle(cx, cy, r - 2.5, "F");
-
-  // Score number
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(...color);
-  doc.text(`${score}%`, cx, cy + 2.5, { align: "center" });
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6);
-  doc.setTextColor(...C.textMuted);
-  doc.text("TRUST SCORE", cx, cy + 7.5, { align: "center" });
-}
-
-// ─── Section label ────────────────────────────────────────────────────────────
-function secLabel(doc, y, title) {
-  // Accent dot
-  doc.setFillColor(...C.accent);
-  doc.circle(ML + 1.5, y - 1.5, 1.5, "F");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...C.accent);
-  doc.text(title.toUpperCase(), ML + 5, y);
-
-  doc.setDrawColor(...C.accentDark);
-  doc.setLineWidth(0.25);
-  doc.line(ML + 5 + doc.getTextWidth(title.toUpperCase()) + 3, y - 0.5, PW - MR, y - 0.5);
-
-  return y + 6;
-}
-
-// ─── Pill badge ───────────────────────────────────────────────────────────────
-function pill(doc, x, y, text, color, filled) {
-  doc.setFontSize(7);
-  const tw = doc.getTextWidth(text);
-  const pw = tw + 7, ph = 6;
-  if (filled) {
-    doc.setFillColor(...color);
-    doc.roundedRect(x, y - ph + 1, pw, ph, 1.8, 1.8, "F");
-    doc.setTextColor(...C.coverBg);
-  } else {
-    doc.setFillColor(color[0], color[1], color[2]);
-    doc.setGState(new doc.GState({ opacity: 0.15 }));
-    doc.roundedRect(x, y - ph + 1, pw, ph, 1.8, 1.8, "F");
-    doc.setGState(new doc.GState({ opacity: 1 }));
-    doc.setDrawColor(...color);
-    doc.setLineWidth(0.35);
-    doc.roundedRect(x, y - ph + 1, pw, ph, 1.8, 1.8, "S");
-    doc.setTextColor(...color);
-  }
-  doc.text(text, x + 3.5, y - 0.5);
-  return pw;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// PAGE 1 — COVER + SUMMARY
-// ═══════════════════════════════════════════════════════════════════════════════
-function buildCoverPage(doc, result, generatedAt, totalPages) {
-  drawHeader(doc, 1, totalPages);
-  drawFooter(doc, generatedAt);
-
-  let y = CT;
-
-  // ── Hero banner ──────────────────────────────────────────────────────────────
-  // Gradient background
-  gradientBand(doc, ML - 2, y, CW + 4, 52, [20, 26, 40], [14, 18, 28], 30);
-  doc.setDrawColor(...C.borderMid);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(ML - 2, y, CW + 4, 52, 3, 3, "S");
-
-  // Left accent stripe on hero
-  doc.setFillColor(...C.accent);
-  doc.roundedRect(ML - 2, y, 3, 52, 1.5, 1.5, "F");
-
-  // Score ring
-  drawRing(doc, ML + 26, y + 26, 17, result.overallTrustScore, scoreCol(result.overallTrustScore));
-
-  // File title
-  const infoX = ML + 52;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(...C.textPrimary);
-  const titleLines = wrap(doc, result.filename || result.videoId || "Verification Report", CW - 58);
-  doc.text(titleLines.slice(0, 2), infoX, y + 12);
-
-  // Subtitle label
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(...C.accent);
-  doc.text("ASET VERIFICATION REPORT", infoX, y + 20);
-
-  // Meta line
-  doc.setFontSize(7);
-  doc.setTextColor(...C.textMuted);
-  const meta = [
-    result.totalClaims + " claims",
-    result.pages ? result.pages + " pages" : null,
-    result.extractionMethod || null,
-    (result.processingTimeMs / 1000).toFixed(1) + "s",
-  ].filter(Boolean).join("  ·  ");
-  doc.text(meta, infoX, y + 27);
-
-  // Overall verdict pill
-  const ov  = overallV(result.overallTrustScore);
-  const ovc = vColor(ov);
-  pill(doc, infoX, y + 38, ov, ovc, true);
-
-  // Generated date
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(...C.textMuted);
-  doc.text(generatedAt, infoX, y + 47);
-
-  y += 58;
-
-  // ── Stats row ─────────────────────────────────────────────────────────────────
-  const stats = [
-    { label: "Supported",    icon: "✓", val: result.verifiedClaims.filter(c => (c.verdict||"").toLowerCase().includes("supported")).length,    color: C.supported },
-    { label: "Contradicted", icon: "✗", val: result.verifiedClaims.filter(c => (c.verdict||"").toLowerCase().includes("contradict")).length,   color: C.contradicted },
-    { label: "Inconclusive", icon: "~", val: result.verifiedClaims.filter(c => (c.verdict||"").toLowerCase().includes("inconclusive")).length, color: C.inconclusive },
-    { label: "Unverifiable", icon: "?", val: result.verifiedClaims.filter(c => !c.score || c.score === 0).length,                              color: C.unverifiable },
-  ];
-
-  const sw = CW / 4;
-  stats.forEach((s, i) => {
-    const sx = ML + i * sw;
-    // Card
-    gradientBand(doc, sx + 1, y, sw - 2, 22, [22, 28, 44], [16, 20, 32], 10);
-    doc.setDrawColor(...C.borderSoft);
-    doc.setLineWidth(0.2);
-    doc.roundedRect(sx + 1, y, sw - 2, 22, 2, 2, "S");
-
-    // Top color bar
-    doc.setFillColor(...s.color);
-    doc.roundedRect(sx + 1, y, sw - 2, 2.5, 1, 1, "F");
-
-    // Number
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.setTextColor(...s.color);
-    doc.text(String(s.val), sx + sw / 2, y + 14, { align: "center" });
-
-    // Label
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    doc.setTextColor(...C.textMuted);
-    doc.text(s.label, sx + sw / 2, y + 19.5, { align: "center" });
-  });
-
-  y += 28;
-
-  // ── Claims list ───────────────────────────────────────────────────────────────
-  y = secLabel(doc, y, "Verified Claims");
-
-  result.verifiedClaims.forEach((item, idx) => {
-    const vc    = vColor(item.verdict);
-    const label = vLabel(item.verdict, item.score);
-    const lines = wrap(doc, item.claim, CW - 42);
-    const rowH  = Math.max(13, lines.length * 4.8 + 7);
-
-    if (y + rowH > CB) {
-      doc.addPage();
-      drawHeader(doc, doc.internal.getCurrentPageInfo().pageNumber, totalPages);
-      drawFooter(doc, generatedAt);
-      y = CT;
-    }
-
-    // Row background
-    const bg = idx % 2 === 0 ? C.rowEven : C.rowOdd;
-    doc.setFillColor(...bg);
-    doc.setDrawColor(...C.borderSoft);
-    doc.setLineWidth(0.15);
-    doc.roundedRect(ML, y, CW, rowH, 2, 2, "FD");
-
-    // Left color stripe
-    doc.setFillColor(...vc);
-    doc.roundedRect(ML, y, 3, rowH, 1.5, 1.5, "F");
-
-    // Index number
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(...C.textMuted);
-    doc.text(String(idx + 1).padStart(2, "0"), ML + 6, y + rowH / 2 + 1.2, { baseline: "middle" });
-
-    // Claim text
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...C.textPrimary);
-    doc.text(lines, ML + 15, y + 5);
-
-    // Verdict pill — right side
-    const pillX = PW - MR - doc.getTextWidth(label) - 10;
-    pill(doc, pillX, y + rowH / 2 + 2, label, vc, false);
-
-    y += rowH + 2;
-  });
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// FUZZY MATCHER
-// ═══════════════════════════════════════════════════════════════════════════════
-function norm(s) {
+function normalize(s) {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 function matchClaim(flatWords, claim) {
   const cw = claim.split(/\s+/).filter(Boolean);
-  const cn = cw.map(norm);
+  const cn = cw.map(normalize);
   const wn = cw.length;
   if (!wn) return null;
 
@@ -394,7 +35,7 @@ function matchClaim(flatWords, claim) {
   for (let i = 0; i <= flatWords.length - wn; i++) {
     let hits = 0;
     for (let j = 0; j < wn; j++) {
-      if (norm(flatWords[i + j]) === cn[j]) hits++;
+      if (normalize(flatWords[i + j]) === cn[j]) hits++;
     }
     const sc = hits / wn;
     if (sc > best) { best = sc; bestI = i; }
@@ -402,12 +43,13 @@ function matchClaim(flatWords, claim) {
   return best >= 0.48 ? { start: bestI, end: bestI + wn } : null;
 }
 
-function buildHlMap(flatWords, claims) {
+function buildHighlightMap(flatWords, claims) {
   const map = {};
+  if (!claims) return map;
   claims.forEach((item, ci) => {
     const m = matchClaim(flatWords, item.claim);
     if (!m) return;
-    const color = vColor(item.verdict);
+    const color = getVerdictColor(item.verdict);
     for (let i = m.start; i < m.end; i++) {
       if (!map[i]) map[i] = { color, idx: ci + 1 };
     }
@@ -415,15 +57,245 @@ function buildHlMap(flatWords, claims) {
   return map;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// PAGES 2+ — ANNOTATED DOCUMENT (Turnitin style)
-// ═══════════════════════════════════════════════════════════════════════════════
-function buildAnnotatedPages(doc, result, generatedAt, totalPages, startPage) {
-  const fullText = (result.extractedText || result.verifiedClaims.map(c => c.claim).join("\n\n"))
+function drawRing(doc, cx, cy, r, score, color) {
+  const steps = 60;
+  const s0 = -Math.PI / 2;
+  const s1 = s0 + (score / 100) * 2 * Math.PI;
+
+  doc.setDrawColor(...C.border);
+  doc.setLineWidth(3.5);
+  doc.circle(cx, cy, r, "S");
+
+  doc.setDrawColor(...color);
+  doc.setLineWidth(3.5);
+  for (let i = 0; i < steps; i++) {
+    const a1 = s0 + (i / steps) * (s1 - s0);
+    const a2 = s0 + ((i + 1) / steps) * (s1 - s0);
+    doc.line(cx + r * Math.cos(a1), cy + r * Math.sin(a1),
+             cx + r * Math.cos(a2), cy + r * Math.sin(a2));
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...color);
+  doc.text(`${score}%`, cx, cy + 1.5, { align: "center", baseline: "middle" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6);
+  doc.setTextColor(...C.textMuted);
+  doc.text("TRUST SCORE", cx, cy + 6, { align: "center", baseline: "middle" });
+}
+
+export function generateVerificationReport(result) {
+  const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
+  buildReport(doc, result);
+  const safeName = (result.filename || result.videoId || "report").replace(/[^a-z0-9]/gi, "_").substring(0, 40);
+  doc.save(`ASET_Report_${safeName}_${Date.now()}.pdf`);
+}
+
+export function generateVerificationReportBlob(result) {
+  const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
+  buildReport(doc, result);
+  return doc.output("blob");
+}
+
+function buildReport(doc, result) {
+  const PW = 210, PH = 297;
+  const ML = 20, MR = 20, MT = 25, MB = 25;
+  const CW = PW - ML - MR;
+  let y = MT + 12; // Start content below the header
+  let pageNum = 1;
+
+  const generatedAt = new Date().toLocaleString("en-US", {
+    year: "numeric", month: "short", day: "numeric",
+    hour: "2-digit", minute: "2-digit"
+  });
+
+  const drawHeader = () => {
+    // Left accent bar
+    doc.setFillColor(...C.accent);
+    doc.rect(0, 0, 4, 25, "F");
+
+    // Logo dots
+    const dots = [
+      [0,0,0,1,2,3],[0,0,1,1,2,2],[0,0,1,1,2,2],
+      [0,1,1,1,2,2],[0,1,1,0,0,0],[0,0,0,0,0,0],
+    ];
+    dots.forEach((row, ri) => row.forEach((val, ci) => {
+      if (!val) return;
+      const color = val === 3 ? C.accent : val === 2 ? [20, 184, 166] : C.textMuted;
+      doc.setFillColor(...color);
+      doc.circle(ML + ci * 2.3, 8 + ri * 2.3, 1.5 * (val / 3), "F");
+    }));
+
+    // ASET wordmark
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(...C.textPrimary);
+    doc.text("ASET", ML + 18, 8, { baseline: "top" });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...C.textMuted);
+    doc.text("Academic Safety & Evidencing Truth", ML + 18, 14, { baseline: "top" });
+
+    doc.setDrawColor(...C.border);
+    doc.setLineWidth(0.3);
+    doc.line(ML, 25, PW - MR, 25);
+  };
+
+  const drawFooter = () => {
+    doc.setDrawColor(...C.border);
+    doc.setLineWidth(0.3);
+    doc.line(ML, PH - MB + 5, PW - MR, PH - MB + 5);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...C.textMuted);
+    doc.text(`Generated: ${generatedAt}`, ML, PH - MB + 8, { baseline: "top" });
+    doc.text(`Page ${pageNum}`, PW - MR, PH - MB + 8, { align: "right", baseline: "top" });
+  };
+
+  const checkBreak = (h) => {
+    if (y + h > PH - MB) {
+      drawFooter();
+      doc.addPage();
+      pageNum++;
+      drawHeader();
+      y = MT + 12; // Reset content below the header on new pages
+      return true;
+    }
+    return false;
+  };
+
+  // Start building
+  drawHeader();
+
+  // COVER PAGE / SUMMARY
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  doc.setTextColor(...C.textPrimary);
+  const titleStr = result.filename || result.videoId || "Verification Report";
+  
+  // Reserve space on the right for the graph
+  const maxTitleW = CW - 50;
+  const title = doc.splitTextToSize(titleStr, maxTitleW);
+  doc.text(title, ML, y, { baseline: "top" });
+  
+  // Draw Graph on the right
+  const score = result.overallTrustScore || 0;
+  let scoreColor;
+  if (score >= 70) scoreColor = C.supported;
+  else if (score >= 40) scoreColor = C.inconclusive;
+  else scoreColor = C.contradicted;
+  
+  drawRing(doc, PW - MR - 20, y + 16, 15, score, scoreColor);
+  
+  y += Math.max(title.length * 9, 32) + 8;
+
+  // Stats
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...C.textSecondary);
+  doc.text(`Total Claims Identified: ${result.totalClaims || 0}`, ML, y, { baseline: "top" });
+  y += 6;
+  
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...scoreColor);
+  doc.text(`Overall Trust Score: ${score}%`, ML, y, { baseline: "top" });
+  y += 14;
+
+  // CLAIMS SECTION
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...C.textPrimary);
+  doc.text("Verified Claims", ML, y, { baseline: "top" });
+  y += 6;
+  
+  doc.setDrawColor(...C.accent);
+  doc.setLineWidth(0.5);
+  doc.line(ML, y, ML + 35, y);
+  y += 8;
+
+  if (result.verifiedClaims && result.verifiedClaims.length > 0) {
+    result.verifiedClaims.forEach((item, idx) => {
+      // Pre-calculate heights and text
+      const indexText = `#${idx + 1}`;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      const indexW = doc.getTextWidth(indexText);
+      
+      const verdictStr = `${item.verdict || "Unverifiable"} ${item.score ? item.score + '%' : ''}`;
+      doc.setFontSize(8);
+      const verdictW = doc.getTextWidth(verdictStr);
+      
+      const claimX = ML + indexW + 4;
+      const claimW = (PW - MR - verdictW - 10) - claimX;
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      const claimLines = doc.splitTextToSize(item.claim, claimW);
+      
+      const claimH = claimLines.length * 4.5;
+      const rowH = Math.max(claimH, 8); // Ensure minimum height
+      
+      // Check for page break BEFORE drawing the row
+      checkBreak(rowH + 10);
+      
+      // Draw Index
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(...C.textPrimary);
+      doc.text(indexText, ML, y, { baseline: "top" });
+      
+      // Draw Verdict Badge
+      const vColor = getVerdictColor(item.verdict);
+      doc.setFillColor(...vColor);
+      doc.roundedRect(PW - MR - verdictW - 6, y - 1, verdictW + 6, 6, 1, 1, "F");
+      doc.setFontSize(8);
+      doc.setTextColor(255, 255, 255);
+      doc.text(verdictStr, PW - MR - verdictW - 3, y + 0.5, { baseline: "top" });
+
+      // Draw Claim Text
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(...C.textSecondary);
+      doc.text(claimLines, claimX, y, { baseline: "top" });
+      
+      y += rowH + 4;
+      
+      // Separator line
+      doc.setDrawColor(...C.border);
+      doc.setLineWidth(0.2);
+      doc.line(ML, y, PW - MR, y);
+      y += 6;
+    });
+  } else {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(10);
+    doc.setTextColor(...C.textMuted);
+    doc.text("No claims could be verified in this document.", ML, y, { baseline: "top" });
+    y += 10;
+  }
+
+  y += 8;
+
+  // ANNOTATED DOCUMENT
+  checkBreak(30); // Need at least 30mm for the section header
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...C.textPrimary);
+  doc.text("Annotated Document", ML, y, { baseline: "top" });
+  y += 6;
+  
+  doc.setDrawColor(...C.accent);
+  doc.setLineWidth(0.5);
+  doc.line(ML, y, ML + 45, y);
+  y += 8;
+
+  const fullText = (result.extractedText || (result.verifiedClaims || []).map(c => c.claim).join("\n\n"))
     .replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
-  // Tokenise entire text once into flat array
-  // Split on single OR double newlines to handle both paragraph styles
   const tokens = [];
   fullText.split(/\n+/).forEach((para, pi) => {
     if (pi > 0) tokens.push({ word: "", isBreak: true });
@@ -431,172 +303,72 @@ function buildAnnotatedPages(doc, result, generatedAt, totalPages, startPage) {
   });
 
   const flatWords = tokens.filter(t => !t.isBreak).map(t => t.word);
-  const hlMap     = buildHlMap(flatWords, result.verifiedClaims);
+  const hlMap = buildHighlightMap(flatWords, result.verifiedClaims);
 
-  // ── Layout ──
-  const FS    = 9;
-  const LH    = 5.8;
-  const SPW   = FS * 0.26 * 0.352778;
-  const ASCENT = FS * 0.352778 * 0.78;
-
-  let pageNum = startPage;
-  doc.addPage();
-
-  const freshPage = () => {
-    drawHeader(doc, pageNum, totalPages);
-    drawFooter(doc, generatedAt);
-    // Document paper feel — slightly lighter than cover
-    doc.setFillColor(...C.pageBg);
-    doc.rect(0, HDR, PW, PH - HDR - FTR, "F");
-    // Inner content area with subtle border
-    doc.setFillColor(14, 18, 28);
-    doc.setDrawColor(...C.borderSoft);
-    doc.setLineWidth(0.2);
-    doc.roundedRect(ML - 3, CT - 1, CW + 6, CB - CT + 2, 2, 2, "FD");
-  };
-
-  freshPage();
-  let y = CT + 4;
-
-  // Section heading
-  y = secLabel(doc, y, "Annotated Document");
-
-  // Legend
-  const legend = [
-    { color: C.supported,    label: "Supported" },
-    { color: C.contradicted, label: "Contradicted" },
-    { color: C.inconclusive, label: "Inconclusive" },
-    { color: C.unverifiable, label: "Unverifiable" },
-  ];
-  let lx = ML;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  legend.forEach(li => {
-    // Swatch
-    doc.setFillColor(...li.color);
-    doc.roundedRect(lx, y - 3.5, 4, 4, 0.8, 0.8, "F");
-    doc.setTextColor(...C.textSecondary);
-    doc.text(li.label, lx + 5.5, y - 0.3);
-    lx += doc.getTextWidth(li.label) + 13;
-  });
-  y += 7;
-
-  // Thin separator
-  doc.setDrawColor(...C.borderSoft);
-  doc.setLineWidth(0.2);
-  doc.line(ML, y - 2, PW - MR, y - 2);
-
-  // ── Word-by-word paragraph render ──
+  doc.setFontSize(10);
+  const LH = 5.5; // Line height
+  const SPW = doc.getTextWidth(" "); // Exact space width
   let x = ML;
   let wordIdx = 0;
 
-  const checkBreak = () => {
-    if (y + LH > CB - 2) {
-      doc.addPage();
-      pageNum++;
-      freshPage();
-      y = CT + 4;
-      x = ML;
-    }
-  };
-
   tokens.forEach(token => {
     if (token.isBreak) {
-      y += LH * 1.8;   // Paragraph spacing — 1.8 line heights
+      y += LH * 1.5; // Paragraph spacing
       x = ML;
-      checkBreak();
+      checkBreak(LH * 2);
       return;
     }
 
     const word = token.word;
-    const hl   = hlMap[wordIdx];
-    const ww   = doc.getTextWidth(word);
+    const hl = hlMap[wordIdx];
+    const ww = doc.getTextWidth(word);
 
-    // Line wrap
+    // Line wrapping logic
     if (x + ww > PW - MR) {
       y += LH;
       x = ML;
-      checkBreak();
+      checkBreak(LH * 2);
     }
 
-    // Highlight rect (drawn before text so text sits on top)
+    // Draw Highlight Background
     if (hl) {
       doc.setFillColor(...hl.color);
-      doc.setGState(new doc.GState({ opacity: 0.25 }));
-      doc.roundedRect(x - 0.5, y - ASCENT, ww + 1, LH - 0.6, 0.5, 0.5, "F");
+      doc.setGState(new doc.GState({ opacity: 0.15 }));
+      doc.roundedRect(x - 0.5, y - 0.5, ww + 1, LH - 0.5, 0.5, 0.5, "F");
       doc.setGState(new doc.GState({ opacity: 1 }));
-
-      // Underline for extra clarity
-      doc.setDrawColor(...hl.color);
-      doc.setLineWidth(0.4);
-      doc.line(x, y + 0.8, x + ww, y + 0.8);
     }
 
-    // Word text
+    // Draw Word Text
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(FS);
-    doc.setTextColor(hl ? 255 : C.textSecondary[0], hl ? 255 : C.textSecondary[1], hl ? 255 : C.textSecondary[2]);
-    doc.text(word, x, y);
+    doc.setFontSize(10);
+    if (hl) {
+      // Darken text color for better contrast on highlight
+      doc.setTextColor(Math.max(0, hl.color[0] - 60), Math.max(0, hl.color[1] - 60), Math.max(0, hl.color[2] - 60));
+    } else {
+      doc.setTextColor(...C.textPrimary);
+    }
+    doc.text(word, x, y, { baseline: "top" });
 
-    // Superscript badge at span end
+    // Draw Index Badge
     const nextHl = hlMap[wordIdx + 1];
     if (hl && (!nextHl || nextHl.idx !== hl.idx)) {
-      const bx = x + ww + 0.5;
-      const by = y - ASCENT - 0.5;
+      const bx = x + ww + 1;
+      const by = y - 1.5;
       doc.setFillColor(...hl.color);
-      doc.roundedRect(bx, by, 5, 3.8, 1, 1, "F");
+      doc.roundedRect(bx, by, 4.5, 3.5, 0.5, 0.5, "F");
       doc.setFont("helvetica", "bold");
       doc.setFontSize(5);
-      doc.setTextColor(...C.coverBg);
-      doc.text(String(hl.idx), bx + 2.5, by + 2.8, { align: "center" });
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(FS);
-      x += 6;
+      doc.setTextColor(255, 255, 255);
+      doc.text(String(hl.idx), bx + 2.25, by + 1.75, { align: "center", baseline: "middle" });
+      doc.setFontSize(10);
+      x += 5.5; // Add space after the badge
     }
 
     x += ww + SPW;
     wordIdx++;
   });
 
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// EXPORT
-// ═══════════════════════════════════════════════════════════════════════════════
-export function generateVerificationReport(result) {
-  const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
-
-  const claimCount = result.verifiedClaims?.length || 0;
-  const totalPages = 2 + Math.ceil(claimCount / 7);
-
-  const generatedAt = new Date().toLocaleString("en-US", {
-    year: "numeric", month: "short", day: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-
-  buildCoverPage(doc, result, generatedAt, totalPages);
-  buildAnnotatedPages(doc, result, generatedAt, totalPages, 2);
-
-  const safeName = (result.filename || result.videoId || "report")
-    .replace(/[^a-z0-9]/gi, "_").substring(0, 40);
-
-  doc.save(`ASET_Report_${safeName}_${Date.now()}.pdf`);
-}
-
-// Export as Blob for PDF viewer (doesn't trigger download)
-export function generateVerificationReportBlob(result) {
-  const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
-
-  const claimCount = result.verifiedClaims?.length || 0;
-  const totalPages = 2 + Math.ceil(claimCount / 7);
-
-  const generatedAt = new Date().toLocaleString("en-US", {
-    year: "numeric", month: "short", day: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-
-  buildCoverPage(doc, result, generatedAt, totalPages);
-  buildAnnotatedPages(doc, result, generatedAt, totalPages, 2);
-
-  return doc.output("blob");
+  // Render final footer if on the last page
+  drawFooter();
 }
