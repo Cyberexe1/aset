@@ -346,78 +346,86 @@ const VerificationReport = ({ result, onReset }) => {
           onClick={closeViewer}
           style={{
             position: 'fixed', inset: 0, zIndex: 9999,
-            background: 'rgba(0,0,0,0.88)',
-            backdropFilter: 'blur(8px)',
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(12px)',
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
-            padding: '20px',
+            padding: '40px 20px',
           }}
         >
           {/* Modal box */}
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              width: '100%', maxWidth: 900,
-              height: '90vh',
-              background: '#0a0e18',
-              border: '1px solid rgba(0,212,170,0.25)',
+              width: '100%', maxWidth: 1000,
+              height: '100%', maxHeight: '90vh',
+              background: '#0B0F17',
+              border: '1px solid rgba(255,255,255,0.1)',
               borderRadius: 16,
               display: 'flex', flexDirection: 'column',
               overflow: 'hidden',
-              boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
             }}
           >
             {/* Modal header */}
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '14px 20px',
+              padding: '16px 24px',
               borderBottom: '1px solid rgba(255,255,255,0.08)',
-              background: 'rgba(0,212,170,0.06)',
+              background: 'transparent',
               flexShrink: 0,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/>
                   <path d="M14 2v6h6M8 13h8M8 17h5"/>
                 </svg>
-                <span style={{ color: '#00d4aa', fontWeight: 600, fontSize: 14 }}>
-                  ASET Verification Report
-                </span>
-                <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>
-                  {result.filename || result.videoId || 'Report'}
-                </span>
+                <div>
+                  <div style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: 15 }}>
+                    Verification Report
+                  </div>
+                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 2 }}>
+                    {result.filename || result.videoId || 'Report'}
+                  </div>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 12 }}>
                 {/* Download from viewer */}
                 <button
                   onClick={handleDownload}
                   style={{
-                    background: 'rgba(0,212,170,0.12)',
+                    background: 'rgba(0,212,170,0.1)',
                     border: '1px solid rgba(0,212,170,0.3)',
                     color: '#00d4aa', borderRadius: 8,
-                    padding: '6px 14px', fontSize: 12, fontWeight: 600,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '8px 16px', fontSize: 13, fontWeight: 500,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                    transition: 'all 0.2s'
                   }}
+                  onMouseOver={(e) => Object.assign(e.currentTarget.style, { background: 'rgba(0,212,170,0.2)' })}
+                  onMouseOut={(e) => Object.assign(e.currentTarget.style, { background: 'rgba(0,212,170,0.1)' })}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="7 10 12 15 17 10"/>
                     <line x1="12" y1="15" x2="12" y2="3"/>
                   </svg>
-                  Download
+                  Download PDF
                 </button>
                 {/* Close */}
                 <button
                   onClick={closeViewer}
                   style={{
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    color: 'rgba(255,255,255,0.6)', borderRadius: 8,
-                    padding: '6px 12px', fontSize: 12, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 4,
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    color: 'rgba(255,255,255,0.7)', borderRadius: 8,
+                    padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    transition: 'all 0.2s'
                   }}
+                  onMouseOver={(e) => Object.assign(e.currentTarget.style, { background: 'rgba(255,255,255,0.05)', color: '#fff' })}
+                  onMouseOut={(e) => Object.assign(e.currentTarget.style, { background: 'transparent', color: 'rgba(255,255,255,0.7)' })}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                   </svg>
                   Close
@@ -426,11 +434,13 @@ const VerificationReport = ({ result, onReset }) => {
             </div>
 
             {/* PDF iframe */}
-            <iframe
-              src={pdfUrl}
-              style={{ flex: 1, border: 'none', width: '100%', background: '#1a1a2e' }}
-              title="ASET Verification Report"
-            />
+            <div style={{ flex: 1, position: 'relative', background: '#323639' }}>
+              <iframe
+                src={pdfUrl}
+                style={{ position: 'absolute', inset: 0, border: 'none', width: '100%', height: '100%' }}
+                title="ASET Verification Report"
+              />
+            </div>
           </div>
         </div>
       )}
