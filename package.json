@@ -25,6 +25,7 @@
     "@libsql/client": "^0.15.15",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.6.2",
+    "canvas": "^3.2.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.18.2",

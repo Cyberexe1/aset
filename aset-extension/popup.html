@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 300px;
+      background: #0a0a0a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 20px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .logo span { font-size: 18px; font-weight: 700; color: #00ffaa; }
+    .subtitle { color: rgba(255,255,255,0.5); font-size: 12px; margin-bottom: 20px; line-height: 1.5; }
+    .how { background: rgba(255,255,255,0.04); border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+    .how h3 { font-size: 12px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+    .step { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
+    .step-num { background: rgba(0,255,170,0.15); color: #00ffaa; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .step-text { color: rgba(255,255,255,0.7); font-size: 12px; line-height: 1.4; }
+    .open-btn {
+      width: 100%;
+      background: rgba(0,255,170,0.12);
+      border: 1px solid rgba(0,255,170,0.4);
+      color: #00ffaa;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .open-btn:hover { background: rgba(0,255,170,0.2); }
+    .footer { text-align: center; color: rgba(255,255,255,0.2); font-size: 10px; margin-top: 14px; }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <svg width="24" height="24" fill="none" viewBox="0 0 28 30">
+      <ellipse cx="16.662" cy="2.428" rx="1.818" ry="1.818" fill="white"/>
+      <ellipse cx="22.114" cy="2.426" rx="2.121" ry="2.122" fill="white"/>
+      <ellipse cx="27.577" cy="2.425" rx="2.424" ry="2.425" fill="white"/>
+      <ellipse cx="11.207" cy="7.875" rx="1.515" ry="1.515" fill="white"/>
+      <ellipse cx="16.662" cy="7.883" rx="1.818" ry="1.818" fill="white"/>
+      <ellipse cx="22.114" cy="7.883" rx="2.121" ry="2.122" fill="white"/>
+      <ellipse cx="27.578" cy="7.883" rx="2.121" ry="2.122" fill="white"/>
+    </svg>
+    <span>ASET</span>
+  </div>
+  <p class="subtitle">Verify any scientific claim on any webpage against 1.2M+ peer-reviewed papers.</p>
+
+  <div class="how">
+    <h3>How to use</h3>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">Select any text on a webpage</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">Right-click → "Verify with ASET"</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">Get instant trust score + supporting papers</div>
+    </div>
+  </div>
+
+  <button class="open-btn" onclick="window.open('https://www.aset-ai.tech','_blank')">
+    Open ASET App →
+  </button>
+
+  <div class="footer">aset-ai.tech · 1.2M+ papers · 8 domains</div>
+</body>
+</html>
