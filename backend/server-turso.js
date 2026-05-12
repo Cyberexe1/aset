@@ -51,9 +51,9 @@ console.log(`✅ Database initialized: ${DATABASE_PATH ? 'Local SQLite' : 'Turso
 // Middleware
 app.use(cors({
   origin: [
+    'https://d3vcp5mqymwbyk.cloudfront.net',
     'https://aset-ai.com',
     'https://www.aset-ai.com',
-    'https://d3tdxezxcen5k0.cloudfront.net',
     'http://localhost:5173',
     'http://localhost:3000'
   ],
