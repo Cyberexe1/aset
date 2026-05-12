@@ -52,8 +52,9 @@ console.log(`✅ Database initialized: ${DATABASE_PATH ? 'Local SQLite' : 'Turso
 app.use(cors({
   origin: [
     'https://d3vcp5mqymwbyk.cloudfront.net',
+    'https://aset-ai.tech',
+    'https://www.aset-ai.tech',
     'https://aset-ai.com',
-    'https://www.aset-ai.com',
     'http://localhost:5173',
     'http://localhost:3000'
   ],
@@ -81,7 +82,7 @@ app.get('/openapi.json', (req, res) => {
       version: '2.0.0',
       description: 'Academic Safety and Evidencing Truth — Scientific claim verification API'
     },
-    servers: [{ url: 'https://dhhmp9ef9u.us-east-1.awsapprunner.com' }],
+    servers: [{ url: 'https://api.aset-ai.tech' }],
     paths: {
       '/health': {
         get: {
