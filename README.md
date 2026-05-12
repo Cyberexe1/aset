@@ -43,15 +43,15 @@
 
 ### AI-Powered Scientific Claim Verification Platform
 
-[![Status](https://img.shields.io/badge/Status-Production-success)](https://aset-ai.com)
-[![Papers](https://img.shields.io/badge/Papers-1.2M+-blue)](https://aset-ai.com)
-[![Domains](https://img.shields.io/badge/Domains-8-purple)](https://aset-ai.com)
-[![AWS](https://img.shields.io/badge/Deployed_on-AWS-orange)](https://aset-ai.com)
+[![Status](https://img.shields.io/badge/Status-Production-success)](https://www.aset-ai.tech)
+[![Papers](https://img.shields.io/badge/Papers-1.2M+-blue)](https://www.aset-ai.tech)
+[![Domains](https://img.shields.io/badge/Domains-8-purple)](https://www.aset-ai.tech)
+[![AWS](https://img.shields.io/badge/Deployed_on-AWS-orange)](https://www.aset-ai.tech)
 [![Hackathon](https://img.shields.io/badge/AWS_10K_AIdeas-Top_50_Finalist-gold)](https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE)
 
 **Top 50 Finalist — AWS 10,000 AIdeas Hackathon**
 
-[Live App](https://aset-ai.com) · [AWS Builder Article](https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE) · [API Spec](https://dhhmp9ef9u.us-east-1.awsapprunner.com/openapi.json)
+[Live App](https://www.aset-ai.tech) · [AWS Builder Article](https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE) · [API Spec](https://api.aset-ai.tech/openapi.json)
 
 </div>
 
@@ -134,10 +134,10 @@ https://aset-ai.com              https://dhhmp9ef9u.us-east-1.awsapprunner.com
 
 ## Live URLs
 
-- **App**: https://aset-ai.com
-- **Backend**: https://dhhmp9ef9u.us-east-1.awsapprunner.com
-- **Health**: https://dhhmp9ef9u.us-east-1.awsapprunner.com/health
-- **API Spec**: https://dhhmp9ef9u.us-east-1.awsapprunner.com/openapi.json
+- **App**: https://www.aset-ai.tech
+- **Backend**: https://api.aset-ai.tech
+- **Health**: https://api.aset-ai.tech/health
+- **API Spec**: https://api.aset-ai.tech/openapi.json
 
 ---
 
