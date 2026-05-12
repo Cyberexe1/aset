@@ -43,15 +43,15 @@
 
 ### AI-Powered Scientific Claim Verification Platform
 
-[![Status](https://img.shields.io/badge/Status-Production-success)](https://d3tdxezxcen5k0.cloudfront.net)
-[![Papers](https://img.shields.io/badge/Papers-1.2M+-blue)](https://d3tdxezxcen5k0.cloudfront.net)
-[![Domains](https://img.shields.io/badge/Domains-8-purple)](https://d3tdxezxcen5k0.cloudfront.net)
-[![AWS](https://img.shields.io/badge/Deployed_on-AWS-orange)](https://d3tdxezxcen5k0.cloudfront.net)
+[![Status](https://img.shields.io/badge/Status-Production-success)](https://aset-ai.com)
+[![Papers](https://img.shields.io/badge/Papers-1.2M+-blue)](https://aset-ai.com)
+[![Domains](https://img.shields.io/badge/Domains-8-purple)](https://aset-ai.com)
+[![AWS](https://img.shields.io/badge/Deployed_on-AWS-orange)](https://aset-ai.com)
 [![Hackathon](https://img.shields.io/badge/AWS_10K_AIdeas-Top_50_Finalist-gold)](https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE)
 
 **Top 50 Finalist — AWS 10,000 AIdeas Hackathon**
 
-[Live App](https://d3tdxezxcen5k0.cloudfront.net) · [AWS Builder Article](https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE)
+[Live App](https://aset-ai.com) · [AWS Builder Article](https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE) · [API Spec](https://dhhmp9ef9u.us-east-1.awsapprunner.com/openapi.json)
 
 </div>
 
@@ -63,34 +63,57 @@ ASET stops AI hallucinations and misinformation by verifying scientific claims a
 
 **The problem:** 46% of AI-generated citations are fabricated. Students, teachers, journalists, and content creators unknowingly spread misinformation backed by fake research.
 
-**The solution:** ASET verifies any claim — typed, uploaded, or from a YouTube video — against a pre-indexed database of peer-reviewed papers, returning a trust score and supporting evidence in under 10 seconds.
+**The solution:** ASET verifies any claim — typed, uploaded, or from a YouTube video — against a pre-indexed database of peer-reviewed papers, returning a trust score and supporting evidence. When no local papers exist, ASET fetches from arXiv + PubMed in real time and permanently stores them — the database grows with every query.
 
 ---
 
 ## Features
 
-- **Mode 1 — Single Claim**: Type any scientific claim and verify it instantly
-- **Mode 2 — YouTube**: Paste a YouTube URL, ASET extracts the transcript and verifies every factual claim
-- **Mode 3 — Document**: Upload a PDF, DOCX, or image — ASET identifies and verifies all claims
-- **Self-Growing DB**: When no local papers exist, ASET fetches from arXiv + PubMed and permanently adds them
+- **Mode 1 — Single Claim**: Type any scientific claim, verified in under 200ms
+- **Mode 2 — YouTube**: Paste a YouTube URL — transcript extracted, every claim verified
+- **Mode 3 — Document**: Upload PDF, DOCX, or image (OCR) — all claims identified and verified
+- **Self-Growing DB**: Fetches from arXiv + PubMed when no local papers found, stores permanently
+- **Paper Search**: Search 1.2M+ papers by title/author/keyword — no login required
 - **8 Scientific Domains**: Space Science, Biology, Medicine, Chemistry, Physics, CS, Engineering + more
 - **1.2M+ Papers**: Pre-indexed with FTS5 for sub-200ms search
+- **Email OTP**: Password reset via AWS SES + Nodemailer
+- **Custom Domain**: https://aset-ai.com (Route 53 + ACM + CloudFront)
 
 ---
 
 ## Architecture
 
 ```
-Frontend (React + Vite)          Backend (Node.js + Express)
-CloudFront + S3                  AWS App Runner (auto-scaling)
-        │                                │
-        └──────── HTTPS API ─────────────┘
-                                         │
-                              Turso SQLite (1.2M papers)
-                              FTS5 full-text search
-                              Groq LLM (claim verification)
-                              arXiv + PubMed (self-growing)
+React Frontend (Vite)            Node.js Backend (Express)
+AWS CloudFront + S3              AWS App Runner (auto-scaling)
+https://aset-ai.com              https://dhhmp9ef9u.us-east-1.awsapprunner.com
+        │                                 │
+        └────────── HTTPS API ────────────┘
+                                          │
+                               Turso (libSQL/SQLite + FTS5)
+                               1.2M papers · 72 topics · 28 domains
+                                          │
+                               Groq LLaMA 3.3 70B
+                               Claim extraction + verification
+                                          │
+                               arXiv OAI-PMH + PubMed E-utilities
+                               Self-growing database
 ```
+
+---
+
+## AWS Services
+
+| Service | Purpose | Details |
+|---------|---------|---------|
+| CloudFront | Global CDN + custom domain | aset-ai.com, 450+ edge locations |
+| S3 | Frontend static hosting | React SPA, versioned deployments |
+| App Runner | Auto-scaling backend | Scales to zero, HTTPS built-in |
+| ECR | Docker image registry | aset-backend repository |
+| Route 53 | DNS + domain registration | aset-ai.com, Alias records |
+| ACM | SSL certificate | TLSv1.2_2021, auto-renewal |
+| SES | Transactional email | OTP emails for password reset |
+| IAM | Access control | Least-privilege roles |
 
 ---
 
@@ -99,30 +122,32 @@ CloudFront + S3                  AWS App Runner (auto-scaling)
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 19, Vite 7, globe.gl |
-| Backend | Node.js, Express |
+| Backend | Node.js 22, Express |
 | Database | Turso (libSQL/SQLite) with FTS5 |
-| AI | Groq (llama-3.3-70b-versatile) |
-| Deployment | AWS App Runner + S3 + CloudFront |
+| AI | Groq LLaMA 3.3 70B (dual-key rotation) |
+| Deployment | AWS App Runner + ECR + S3 + CloudFront |
 | Auth | JWT + bcrypt + Email OTP |
-| Document Processing | pdf-parse, mammoth, tesseract.js |
+| Document Processing | pdf-parse v1, mammoth, tesseract.js |
+| YouTube | Supadata API (transcript extraction) |
 
 ---
 
 ## Live URLs
 
-- **Frontend**: https://d3tdxezxcen5k0.cloudfront.net
-- **Backend API**: https://dhhmp9ef9u.us-east-1.awsapprunner.com
-- **Health Check**: https://dhhmp9ef9u.us-east-1.awsapprunner.com/health
+- **App**: https://aset-ai.com
+- **Backend**: https://dhhmp9ef9u.us-east-1.awsapprunner.com
+- **Health**: https://dhhmp9ef9u.us-east-1.awsapprunner.com/health
+- **API Spec**: https://dhhmp9ef9u.us-east-1.awsapprunner.com/openapi.json
 
 ---
 
 ## Local Development
 
 ```bash
-# Backend
+# Backend (port 3001)
 node backend/server-turso.js
 
-# Frontend
+# Frontend (port 5173)
 cd "ASET frontend"
 npm run dev
 ```
@@ -131,16 +156,14 @@ npm run dev
 
 ## Database Expansion
 
-To add new domains to the database:
-
 ```bash
-# Run all domain ingestion (PubMed + arXiv OAI)
+# Ingest new domains (PubMed + arXiv OAI-PMH)
 node scripts/ingest-all-domains.js
 
 # Migrate new papers to Turso
 node scripts/migrate-new-domains.js
 
-# Rebuild FTS index if needed
+# Rebuild FTS index
 node scripts/rebuild-fts.js
 ```
 
@@ -149,16 +172,17 @@ node scripts/rebuild-fts.js
 ## Deployment
 
 ```bash
-# Build and push backend
+# Backend
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 058264278824.dkr.ecr.us-east-1.amazonaws.com
 docker build -t aset-backend .
-docker tag aset-backend:latest <ecr-url>/aset-backend:latest
-docker push <ecr-url>/aset-backend:latest
-aws apprunner start-deployment --service-arn <arn> --region us-east-1
+docker tag aset-backend:latest 058264278824.dkr.ecr.us-east-1.amazonaws.com/aset-backend:latest
+docker push 058264278824.dkr.ecr.us-east-1.amazonaws.com/aset-backend:latest
+aws apprunner start-deployment --service-arn arn:aws:apprunner:us-east-1:058264278824:service/aset-backend/013a3d1ba1874372990e36182c7d699d --region us-east-1
 
-# Deploy frontend
-npm run build  # in ASET frontend/
-aws s3 sync "ASET frontend/dist" s3://<bucket> --delete
-aws cloudfront create-invalidation --distribution-id <id> --paths "/*"
+# Frontend
+cd "ASET frontend" && npm run build
+aws s3 sync "ASET frontend/dist" s3://aset-frontend-prod-058264278824 --delete
+aws cloudfront create-invalidation --distribution-id E38WWI7NAQX84D --paths "/*"
 ```
 
 ---
@@ -169,4 +193,7 @@ ASET was built for the **AWS 10,000 AIdeas Hackathon** and selected as a **Top 5
 
 Judged on: Technical Innovation (34%) · Implementation Quality (33%) · Market Impact (33%)
 
-Built by **Om Singh (jayom5797)** · [AWS Builder Profile](https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE)
+**Team ZeTech:**
+- Om Singh (jayom5797) — [AWS Builder](https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE)
+- Utsav Singh (utsavsingh35)
+- Vikas Tiwari (vikas2731)
