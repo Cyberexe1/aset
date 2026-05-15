@@ -68,6 +68,64 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
+// ─── Page Visit Tracking ─────────────────────────────────────────────────────
+
+// Called by frontend on every page load — upserts today's visit count
+app.post('/api/track-visit', async (req, res) => {
+  try {
+    const now   = new Date();
+    const date  = now.toISOString().slice(0, 10);        // YYYY-MM-DD
+    const month = now.toISOString().slice(0, 7);         // YYYY-MM
+
+    await db.execute({
+      sql: `INSERT INTO page_visits (date, month, visits)
+            VALUES (?, ?, 1)
+            ON CONFLICT(date) DO UPDATE SET visits = visits + 1`,
+      args: [date, month]
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    // Non-critical — don't break the app if tracking fails
+    console.error('[Analytics] track-visit error:', err.message);
+    res.json({ success: false });
+  }
+});
+
+// Returns daily visits for last 30 days + monthly totals for last 12 months
+app.get('/api/visit-stats', async (req, res) => {
+  try {
+    const [daily, monthly, total] = await Promise.all([
+      // Last 30 days — one row per day
+      db.execute(`
+        SELECT date, visits
+        FROM page_visits
+        ORDER BY date DESC
+        LIMIT 30
+      `),
+      // Last 12 months — summed per month
+      db.execute(`
+        SELECT month, SUM(visits) as visits
+        FROM page_visits
+        GROUP BY month
+        ORDER BY month DESC
+        LIMIT 12
+      `),
+      // All-time total
+      db.execute(`SELECT SUM(visits) as total FROM page_visits`)
+    ]);
+
+    res.json({
+      daily:   daily.rows,
+      monthly: monthly.rows,
+      total:   total.rows[0]?.total || 0
+    });
+  } catch (err) {
+    console.error('[Analytics] visit-stats error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ name: 'ASET API', version: '2.0.0', status: 'ok', docs: '/openapi.json' });
@@ -308,7 +366,18 @@ async function initAuthTables() {
 
     // OTP table for password reset
     await initOTPTable(db);
-    
+
+    // Page visit analytics table
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS page_visits (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        date      TEXT NOT NULL,          -- YYYY-MM-DD
+        month     TEXT NOT NULL,          -- YYYY-MM
+        visits    INTEGER DEFAULT 1,
+        UNIQUE(date)
+      )
+    `);
+
     console.log('✅ Auth tables initialized');
   } catch (error) {
     console.error('Error initializing auth tables:', error);

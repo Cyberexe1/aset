@@ -1,0 +1,43 @@
+# robots.txt for https://aset-ai.tech/
+# Generated for ASET — AI Scientific Claim Verification
+
+# ── All crawlers ──────────────────────────────────────────────────────────────
+User-agent: *
+Allow: /
+
+# Block source map files (no SEO value, exposes internals)
+Disallow: /*.map$
+
+# Block Vite build artifacts if accidentally exposed
+Disallow: /@vite/
+Disallow: /@fs/
+Disallow: /node_modules/
+
+# ── Google ────────────────────────────────────────────────────────────────────
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 2
+
+# ── Bing ──────────────────────────────────────────────────────────────────────
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 5
+
+# ── Block AI training scrapers ────────────────────────────────────────────────
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+# ── Sitemap ───────────────────────────────────────────────────────────────────
+Sitemap: https://aset-ai.tech/sitemap.xml

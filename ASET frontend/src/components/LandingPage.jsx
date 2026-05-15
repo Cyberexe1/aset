@@ -125,15 +125,15 @@ const Icon = ({ name, size = 48, className = 'icon-svg' }) => {
 };
 
 const featureItems = [
-  ['database', 'Massive Database', 'Access 972,327 papers from arXiv and NASA ADS with full-text search'],
-  ['ai', 'AI Verification', 'Powered by Groq LLaMA 3.3 70B for intelligent claim verification'],
-  ['lightning', 'Real-time Search', 'Lightning-fast full-text search with relevance scoring'],
-  ['cloud', 'AWS Native', 'Built on CloudFront, API Gateway, EC2, and Turso edge database'],
-  ['chart', 'Topic Indexing', 'Hierarchical topic organization for precise research navigation'],
-  ['target', 'Smart Ranking', 'Advanced relevance algorithms ensure the most pertinent papers appear first'],
-  ['lock', 'Secure & Private', 'JWT authentication with encrypted data storage'],
-  ['globe', 'Global CDN', 'CloudFront distribution for low-latency access worldwide'],
-  ['archive', 'Chat History', 'Save and sync your research sessions across devices'],
+  ['database', '1.2M+ Research Papers', 'Search over 1.2 million peer-reviewed papers from arXiv and PubMed with FTS5 full-text search'],
+  ['ai', 'AI Claim Verification', 'Powered by Groq LLaMA 3.3 70B — verifies scientific claims with evidence and confidence scores'],
+  ['lightning', 'Results in Under 10s', 'Lightning-fast verification pipeline returns trust scores and supporting papers in under 10 seconds'],
+  ['cloud', 'Document & Video Support', 'Upload PDFs, DOCX, images, or paste a YouTube URL — ASET extracts and verifies every claim'],
+  ['chart', '8 Scientific Domains', 'Covers Biology, Medicine, Physics, Chemistry, CS, Engineering, Space Science, and more'],
+  ['target', 'Trust Score & Verdict', 'Every claim gets a 0–100 trust score with verdict: Supported, Contradicted, or Inconclusive'],
+  ['lock', 'Secure & Private', 'JWT authentication, bcrypt password hashing, and encrypted data storage'],
+  ['globe', 'Self-Growing Database', 'When no local papers exist, ASET fetches from arXiv + PubMed and permanently adds them'],
+  ['archive', 'Chat History', 'Save and revisit all your verification sessions across devices'],
 ];
 
 const techItems = [
@@ -212,10 +212,10 @@ const LandingPage = ({ onGetStarted, isLoggedIn = false, onGoToApp }) => {
             <h1 className="hero-title">ASET</h1>
           </div>
           
-          <h2 className="hero-subtitle-main">Academic Safety and Evidence Truthing</h2>
+          <h2 className="hero-subtitle-main">Academic Safety and Evidencing Truth</h2>
           
           <p className="hero-subtitle">
-            Helping students overcome AI-hallucinated data with real scientific evidence from arXiv and NASA ADS
+            Verify any scientific claim against 1.2M+ peer-reviewed papers from arXiv and PubMed in under 10 seconds. Stop AI hallucinations before they spread.
           </p>
           
           <div className="hero-buttons">
@@ -230,26 +230,26 @@ const LandingPage = ({ onGetStarted, isLoggedIn = false, onGoToApp }) => {
           
           <div className="hero-stats">
             <div className="stat-item">
-              <div className="stat-number">972K+</div>
+              <div className="stat-number">1.2M+</div>
               <div className="stat-label">Research Papers</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">AI-Powered</div>
-              <div className="stat-label">Claim Verification</div>
+              <div className="stat-number">&lt;10s</div>
+              <div className="stat-label">Verification Time</div>
             </div>
             <div className="stat-item">
-              <div className="stat-number">Real-time</div>
-              <div className="stat-label">Search & Analysis</div>
+              <div className="stat-number">8</div>
+              <div className="stat-label">Scientific Domains</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="features-section" id="features">
+      <section className="features-section" id="features" aria-label="Features">
         <div className="section-header">
-          <h2>Why Choose ASET?</h2>
-          <p>Combat AI hallucinations with verified scientific evidence</p>
+          <h2>Why Choose ASET for Scientific Verification?</h2>
+          <p>The most reliable way to combat AI hallucinations with peer-reviewed evidence</p>
         </div>
         
         <div className="features-grid">
@@ -398,7 +398,7 @@ const LandingPage = ({ onGetStarted, isLoggedIn = false, onGoToApp }) => {
         <div className="footer-content">
           <div className="footer-brand">
             <h3>ASET</h3>
-            <p>Academic Safety and Evidence Truthing</p>
+            <p>Academic Safety and Evidencing Truth</p>
           </div>
           
           <div className="footer-links">

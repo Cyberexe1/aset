@@ -2,9 +2,191 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/src/assects/icons/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ASET - Academic Safety and Evidence Truthing</title>
+
+    <!-- ── Primary SEO ─────────────────────────────────────────────────────── -->
+    <title>ASET — AI Scientific Claim Verification | 1.2M+ Research Papers</title>
+    <meta name="description" content="ASET verifies scientific claims against 1.2M+ peer-reviewed research papers from arXiv and PubMed in real time. Detect AI hallucinations, verify facts from YouTube videos and documents, and get trust scores backed by real science." />
+    <meta name="keywords" content="scientific claim verification, AI hallucination detection, research paper search, arXiv search, PubMed search, fact checking tool, academic integrity, peer reviewed papers, science fact checker, verify research claims, AI misinformation, document verification, YouTube fact check, claim verification tool, scientific evidence, ASET, aset-ai, academic safety, evidence truthing, research paper checker, document integrity checker, biology research papers, medicine research papers, physics papers, chemistry papers, computer science papers, engineering papers, neuroscience papers, oncology papers, machine learning papers, deep learning verification, research paper database, free fact checker, AI powered research, scientific truth, hallucination free AI" />
+    <meta name="author" content="ASET Team — Utsav Singh, Vikas Tiwari, Om Singh" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <link rel="canonical" href="https://aset-ai.tech/" />
+
+    <!-- ── Open Graph (Facebook, LinkedIn, WhatsApp) ──────────────────────── -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://aset-ai.tech/" />
+    <meta property="og:title" content="ASET — AI Scientific Claim Verification | 1.2M+ Research Papers" />
+    <meta property="og:description" content="Verify any scientific claim against 1.2M+ peer-reviewed papers in under 10 seconds. Supports text, YouTube videos, and document uploads. Stop AI hallucinations with real evidence." />
+    <meta property="og:image" content="https://aset-ai.tech/og-image.svg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/svg+xml" />
+    <meta property="og:image:alt" content="ASET — AI-powered scientific claim verification platform" />
+    <meta property="og:site_name" content="ASET" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- ── Twitter Card ───────────────────────────────────────────────────── -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@aset_ai" />
+    <meta name="twitter:url" content="https://aset-ai.tech/" />
+    <meta name="twitter:title" content="ASET — AI Scientific Claim Verification" />
+    <meta name="twitter:description" content="Verify scientific claims against 1.2M+ peer-reviewed papers in under 10 seconds. Detect AI hallucinations with real evidence." />
+    <meta name="twitter:image" content="https://aset-ai.tech/og-image.svg" />
+    <meta name="twitter:image:alt" content="ASET scientific claim verification platform" />
+
+    <!-- ── Favicon ────────────────────────────────────────────────────────── -->
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="apple-touch-icon" href="/logo.svg" />
+    <meta name="theme-color" content="#00d4aa" />
+    <meta name="msapplication-TileColor" content="#00d4aa" />
+
+    <!-- ── Additional SEO signals ─────────────────────────────────────────── -->
+    <meta name="application-name" content="ASET" />
+    <meta name="generator" content="React + Vite" />
+    <meta name="rating" content="general" />
+    <meta name="revisit-after" content="7 days" />
+    <meta name="language" content="English" />
+    <meta name="category" content="Education, Research, Science, AI Tools" />
+    <meta name="classification" content="Education" />
+    <meta name="coverage" content="Worldwide" />
+    <meta name="target" content="students, researchers, journalists, educators, content creators" />
+
+    <!-- ── Structured Data — WebApplication ──────────────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "ASET",
+      "alternateName": ["Academic Safety and Evidencing Truth", "ASET AI", "aset-ai"],
+      "url": "https://aset-ai.tech/",
+      "logo": "https://aset-ai.tech/logo.svg",
+      "image": "https://aset-ai.tech/og-image.svg",
+      "description": "AI-powered scientific claim verification platform. Verify any claim against 1.2M+ peer-reviewed research papers from arXiv and PubMed in real time. Supports text input, YouTube video transcripts, and document uploads (PDF, DOCX, images).",
+      "applicationCategory": "EducationApplication",
+      "applicationSubCategory": "Research Tool",
+      "operatingSystem": "Web Browser",
+      "browserRequirements": "Requires JavaScript",
+      "inLanguage": "en",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
+      },
+      "featureList": [
+        "Scientific claim verification against 1.2M+ research papers",
+        "AI hallucination detection",
+        "YouTube video transcript fact-checking",
+        "PDF and DOCX document verification",
+        "Image OCR and claim extraction",
+        "Trust score and verdict generation",
+        "arXiv and PubMed paper search",
+        "8 scientific domain coverage",
+        "Self-growing research paper database",
+        "Real-time verification under 10 seconds"
+      ],
+      "keywords": "scientific claim verification, research papers, AI hallucination, fact checking, arXiv, PubMed, academic integrity, aset-ai, research paper checker, document integrity checker",
+      "author": [
+        {
+          "@type": "Person",
+          "name": "Utsav Singh",
+          "url": "https://port-vercel-eight.vercel.app/",
+          "sameAs": "https://www.linkedin.com/in/utsavsingh35"
+        },
+        {
+          "@type": "Person",
+          "name": "Vikas Tiwari",
+          "url": "https://vikas-tiwari.in/",
+          "sameAs": "https://www.linkedin.com/in/1045-vikas-tiwari"
+        },
+        {
+          "@type": "Person",
+          "name": "Om Singh",
+          "url": "https://om07.in/",
+          "sameAs": "https://www.linkedin.com/in/5797omsingh"
+        }
+      ],
+      "award": "AWS 10,000 AIdeas Hackathon — Top 50 Finalist",
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "ratingCount": "50",
+        "bestRating": "5"
+      }
+    }
+    </script>
+
+    <!-- ── Structured Data — Organization ────────────────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "ASET",
+      "url": "https://aset-ai.tech/",
+      "logo": "https://aset-ai.tech/logo.svg",
+      "description": "ASET builds AI-powered tools for scientific claim verification and academic integrity.",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "jayom5797@gmail.com",
+        "contactType": "customer support"
+      },
+      "sameAs": [
+        "https://github.com/Jayom5797",
+        "https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE"
+      ]
+    }
+    </script>
+
+    <!-- ── Structured Data — FAQPage ─────────────────────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is ASET?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "ASET (Academic Safety and Evidencing Truth) is an AI-powered platform that verifies scientific claims against 1.2M+ peer-reviewed research papers from arXiv and PubMed in real time."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does ASET verify scientific claims?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "ASET uses Groq LLaMA 3.3 70B to analyze your claim against relevant research papers, returning a trust score (0-100), a verdict (Supported, Contradicted, Inconclusive), and supporting evidence from peer-reviewed papers."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can ASET verify claims from YouTube videos?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Paste any YouTube URL and ASET automatically extracts the transcript, identifies all factual claims, and verifies each one against peer-reviewed research papers."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What file types does ASET support for document verification?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "ASET supports PDF, DOCX, DOC, TXT, PNG, JPG, WEBP, BMP, and TIFF files up to 20MB. It extracts text (using OCR for images) and verifies all scientific claims found in the document."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is ASET free to use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, ASET is completely free to use. Create an account and start verifying scientific claims instantly."
+          }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
