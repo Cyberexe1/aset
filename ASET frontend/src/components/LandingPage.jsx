@@ -208,11 +208,11 @@ const LandingPage = ({ onGetStarted, isLoggedIn = false, onGoToApp }) => {
           </div>
           
           <div className="hero-logo">
-            <img src={logoIcon} alt="ASET Logo" className="hero-logo-icon" />
-            <h1 className="hero-title">ASET</h1>
+            <img src={logoIcon} alt="ASET — AI Scientific Claim Verification" className="hero-logo-icon" />
+            <span className="hero-title" aria-hidden="true">ASET</span>
           </div>
           
-          <h2 className="hero-subtitle-main">Academic Safety and Evidencing Truth</h2>
+          <h1 className="hero-subtitle-main">AI-Powered Scientific Claim Verification</h1>
           
           <p className="hero-subtitle">
             Verify any scientific claim against 1.2M+ peer-reviewed papers from arXiv and PubMed in under 10 seconds. Stop AI hallucinations before they spread.
@@ -248,8 +248,8 @@ const LandingPage = ({ onGetStarted, isLoggedIn = false, onGoToApp }) => {
       {/* Features Section */}
       <section className="features-section" id="features" aria-label="Features">
         <div className="section-header">
-          <h2>Why Choose ASET for Scientific Verification?</h2>
-          <p>The most reliable way to combat AI hallucinations with peer-reviewed evidence</p>
+          <h2>Scientific Claim Verification — How ASET Works</h2>
+          <p>The fastest way to fact-check research claims against 1.2M+ peer-reviewed papers</p>
         </div>
         
         <div className="features-grid">
@@ -381,10 +381,10 @@ const LandingPage = ({ onGetStarted, isLoggedIn = false, onGoToApp }) => {
       {/* CTA Section */}
       <section className="cta-section">
         <div className="cta-content">
-          <h2>Ready to verify scientific claims?</h2>
-          <p>Join students worldwide in combating AI hallucinations with real evidence</p>
+          <h2>Start Verifying Scientific Claims for Free</h2>
+          <p>Used by students, researchers, and journalists to detect AI hallucinations and verify facts against peer-reviewed evidence</p>
           <button className="btn-primary-large" onClick={onGetStarted}>
-            Get Started Free
+            Verify a Claim Now — It's Free
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="5" y1="12" x2="19" y2="12"></line>
               <polyline points="12 5 19 12 12 19"></polyline>
@@ -393,27 +393,25 @@ const LandingPage = ({ onGetStarted, isLoggedIn = false, onGoToApp }) => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="landing-footer">
+      <footer className="landing-footer" aria-label="Site footer">
         <div className="footer-content">
           <div className="footer-brand">
             <h3>ASET</h3>
-            <p>Academic Safety and Evidencing Truth</p>
+            <p>AI-powered scientific claim verification — Academic Safety and Evidencing Truth</p>
           </div>
           
-          <div className="footer-links">
+          <nav className="footer-links" aria-label="Footer navigation">
             <div className="footer-column">
               <h4>Product</h4>
               <a href="#features">Features</a>
-              <a href="#team">Team</a>
+              <a href="#contact">Team</a>
               <a href="#tech">Technology</a>
             </div>
             
             <div className="footer-column">
               <h4>Resources</h4>
-              <a href="https://github.com/Utsav-Singh-35" target="_blank" rel="noopener noreferrer">GitHub</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); alert('Documentation coming soon!'); }}>Documentation</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); alert('API docs coming soon!'); }}>API</a>
+              <a href="https://github.com/Jayom5797/aset-aws" target="_blank" rel="noopener noreferrer">GitHub</a>
+              <a href="https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE" target="_blank" rel="noopener noreferrer">AWS Builder</a>
             </div>
             
             <div className="footer-column">
@@ -422,11 +420,11 @@ const LandingPage = ({ onGetStarted, isLoggedIn = false, onGoToApp }) => {
               <a href="mailto:vikastiwari1045@gmail.com">vikastiwari1045@gmail.com</a>
               <a href="mailto:jayom5797@gmail.com">jayom5797@gmail.com</a>
             </div>
-          </div>
+          </nav>
         </div>
         
         <div className="footer-bottom">
-          <p>© 2026 ASET. Built for 10,000 Aideas Competition.</p>
+          <p>© 2026 ASET — AI Scientific Claim Verification. AWS 10K AIdeas Top 50 Finalist.</p>
         </div>
       </footer>
     </div>

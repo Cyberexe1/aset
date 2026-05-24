@@ -6,7 +6,7 @@ User-agent: *
 Allow: /
 
 # Block source map files (no SEO value, exposes internals)
-Disallow: /*.map$
+Disallow: /*.map
 
 # Block Vite build artifacts if accidentally exposed
 Disallow: /@vite/
