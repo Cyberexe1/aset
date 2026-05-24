@@ -83,7 +83,7 @@
   gap: 0.4rem;
   color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   font-weight: 500;
   transition: all 0.3s ease;
   position: relative;
@@ -117,7 +117,7 @@
   border: none;
   border-radius: 8px;
   color: #fff;
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   font-family: 'Michroma', sans-serif;
   font-weight: 600;
   cursor: pointer;
@@ -375,6 +375,7 @@
   flex-direction: column;
   justify-content: center;
   transition: all 0.3s ease;
+  overflow: hidden;
 }
 
 .feature-card:hover {
@@ -461,6 +462,31 @@
 .feature-card:nth-child(9) {
   grid-column: 6 / 8;
   grid-row: 7 / 9;
+}
+
+/* Bottom row cards are shorter — shrink icon to fit */
+.feature-card:nth-child(7) .feature-icon,
+.feature-card:nth-child(9) .feature-icon {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 8px;
+}
+
+.feature-card:nth-child(7) .feature-icon .icon-svg,
+.feature-card:nth-child(9) .feature-icon .icon-svg {
+  width: 28px;
+  height: 28px;
+}
+
+.feature-card:nth-child(7) h3,
+.feature-card:nth-child(9) h3 {
+  font-size: 1.3rem;
+  margin-bottom: 4px;
+}
+
+.feature-card:nth-child(7) p,
+.feature-card:nth-child(9) p {
+  font-size: 0.9rem;
 }
 
 /* Contact Section - Combined Team + Contact */
