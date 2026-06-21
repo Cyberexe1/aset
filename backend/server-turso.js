@@ -10,6 +10,12 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
+// ─── Sponsor Integrations ────────────────────────────────────────────────────
+const redisClient = require('./redis-client');
+const arizeTracer = require('./arize-tracer');
+const browserbaseFetcher = require('./browserbase-fetcher');
+const AgentPipeline = require('./agents/agent-pipeline');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -36,6 +42,9 @@ const verifier = new ClaimVerifier({
 
 console.log(`✅ Claim verifier initialized with ${groqKeys.length} key(s) + rotation + rate-limit fallback`);
 
+// Initialize Redis (non-blocking — degrades gracefully if Redis not available)
+redisClient.getRedisClient().catch(() => {});
+
 // Database client - supports both local SQLite (AWS) and Turso (development)
 const DATABASE_PATH = process.env.DATABASE_PATH;
 const TURSO_URL = process.env.TURSO_DATABASE_URL;
@@ -47,6 +56,19 @@ const db = createClient({
 });
 
 console.log(`✅ Database initialized: ${DATABASE_PATH ? 'Local SQLite' : 'Turso (remote)'}`);
+
+// Initialize multi-agent pipeline (Fetch.ai Agentverse + Band Protocol)
+const groqConfig = {
+  groqApiKey:  groqKeys[0],
+  groqApiKey2: groqKeys[1],
+  groqApiKey3: groqKeys[2],
+  groqApiKey4: groqKeys[3],
+};
+let agentPipeline = null;
+// Lazy-init after db is ready
+setTimeout(() => {
+  agentPipeline = new AgentPipeline(db, groqConfig);
+}, 500);
 
 // Middleware
 app.use(cors({
@@ -876,6 +898,17 @@ app.post('/api/get-sources', async (req, res) => {
     
     const startTime = Date.now();
     
+    // Check Redis research cache first
+    const cachedResult = await redisClient.getResearchCache(claim);
+    if (cachedResult) {
+      console.log(`[get-sources] Redis cache hit for: "${claim.substring(0, 40)}"`);
+      return res.json({
+        ...cachedResult,
+        queryTime: Date.now() - startTime,
+        cached: true
+      });
+    }
+
     // Extract keywords from claim
     const words = claim.toLowerCase().match(/\b[a-z]{3,}\b/g) || [];
     const stopWords = new Set(['the', 'and', 'that', 'this', 'with', 'from', 'have', 'been', 'were', 'are', 'for', 'can', 'will', 'but', 'not', 'was', 'has', 'its', 'are', 'also']);
@@ -1125,6 +1158,20 @@ app.post('/api/get-sources', async (req, res) => {
       queryTime: Date.now() - startTime,
       message: `Found ${sourcesWithRelevance.length} source(s) in ${topTopic[0]} → ${topSubtopic[0]}`
     });
+    
+    // Cache the full result in Redis (async, don't await)
+    const cachePayload = {
+      domain: detectedTopic ? detectedTopic.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Multi-Domain Science',
+      topic: topTopic[0],
+      subtopic: topSubtopic[0],
+      relevance: keywords.length,
+      sources: filteredSources,
+      totalSources: filteredSources.length,
+      returnedSources: filteredSources.length,
+      hasMore: false,
+      message: `Found ${sourcesWithRelevance.length} source(s) in ${topTopic[0]} → ${topSubtopic[0]}`
+    };
+    redisClient.cacheResearchResults(claim, cachePayload).catch(() => {});
     
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1389,16 +1436,32 @@ app.post('/api/verify-claim', async (req, res) => {
 
     console.log(`[Verification] Starting for claim: "${claim}" with ${papers.length} papers`);
 
-    const result = await verifier.verifyClaim(claim, papers, {
-      maxPapers,
-      batchSize: 10,
-      onProgress: (progress) => {
-        console.log(`[Verification] ${progress.stage}: ${progress.current}/${progress.total}`);
-      }
+    const result = await arizeTracer.traceVerification(claim, papers, async () => {
+      return verifier.verifyClaim(claim, papers, {
+        maxPapers,
+        batchSize: 10,
+        onProgress: (progress) => {
+          console.log(`[Verification] ${progress.stage}: ${progress.current}/${progress.total}`);
+        }
+      });
     });
 
-    console.log(`[Verification] Completed in ${result.processingTimeMs}ms - Score: ${result.verificationScore}%`);
+    // Save to Redis verification history if authenticated
+    const token = req.headers.authorization?.substring(7);
+    if (token) {
+      const { verifyToken } = require('./auth');
+      const decoded = verifyToken(token);
+      if (decoded?.userId) {
+        const vid = `v-${Date.now()}`;
+        await redisClient.saveVerificationHistory(decoded.userId, vid, result);
+      }
+    }
 
+    // Update Redis stats
+    await redisClient.incrementClaimStat(result.verdict);
+    if (papers[0]?.topic) await redisClient.incrementDomainStat(papers[0].topic);
+
+    console.log(`[Verification] Completed in ${result.processingTimeMs}ms - Score: ${result.verificationScore}%`);
     res.json(result);
   } catch (error) {
     console.error('[Verification] Error:', error);
@@ -1724,11 +1787,222 @@ app.post('/api/process-youtube', async (req, res) => {
   }
 });
 
+// ─── Multi-Agent Pipeline Endpoints (Fetch.ai Agentverse) ────────────────────
+
+/**
+ * POST /api/agents/pipeline
+ * Run the full 4-agent pipeline: Research → Verify → Citation → Report
+ * Returns a structured report with citations in APA/MLA/IEEE format
+ */
+app.post('/api/agents/pipeline', async (req, res) => {
+  try {
+    const { claim, userId } = req.body;
+    if (!claim || typeof claim !== 'string') {
+      return res.status(400).json({ error: 'claim is required' });
+    }
+    if (!agentPipeline) {
+      return res.status(503).json({ error: 'Agent pipeline not yet initialized — retry in a moment' });
+    }
+
+    // Redis rate limiting
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const { allowed, remaining } = await redisClient.checkRateLimit(`pipeline:${ip}`, 5, 60);
+    if (!allowed) {
+      return res.status(429).json({ error: 'Rate limit exceeded — max 5 pipeline requests/minute', remaining });
+    }
+
+    console.log(`[Pipeline API] Starting pipeline for: "${claim.substring(0, 60)}"`);
+    const report = await agentPipeline.runPipeline(claim, { userId });
+    res.json(report);
+
+  } catch (err) {
+    console.error('[Pipeline API] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/agents/research
+ * Agentverse HTTP endpoint for the ResearchAgent
+ * Accepts uAgents envelope format
+ */
+app.post('/api/agents/research', async (req, res) => {
+  if (!agentPipeline) return res.status(503).json({ error: 'Not ready' });
+  try {
+    const result = await agentPipeline.researchAgent.handleAgentverseMessage(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/agents/verification
+ * Agentverse HTTP endpoint for the VerificationAgent
+ */
+app.post('/api/agents/verification', async (req, res) => {
+  if (!agentPipeline) return res.status(503).json({ error: 'Not ready' });
+  try {
+    const result = await agentPipeline.verificationAgent.handleAgentverseMessage(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/agents/citation
+ * Agentverse HTTP endpoint for the CitationAgent
+ */
+app.post('/api/agents/citation', async (req, res) => {
+  if (!agentPipeline) return res.status(503).json({ error: 'Not ready' });
+  try {
+    const result = await agentPipeline.citationAgent.handleAgentverseMessage(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/agents/report
+ * Agentverse HTTP endpoint for the ReportAgent
+ */
+app.post('/api/agents/report', async (req, res) => {
+  if (!agentPipeline) return res.status(503).json({ error: 'Not ready' });
+  try {
+    const result = await agentPipeline.reportAgent.handleAgentverseMessage(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/agents/status
+ * Returns the agent pipeline status and last N Band bus messages
+ */
+app.get('/api/agents/status', (req, res) => {
+  const log = agentPipeline ? agentPipeline.getPipelineLog(20) : [];
+  res.json({
+    pipeline: !!agentPipeline,
+    agents: [
+      { name: 'aset-research-agent',     role: 'Paper search + external fetch' },
+      { name: 'aset-verification-agent', role: 'LLM-based stance classification' },
+      { name: 'aset-citation-agent',     role: 'APA/MLA/IEEE citation formatting' },
+      { name: 'aset-report-agent',       role: 'Report assembly + delivery' }
+    ],
+    messageBus: 'Band Protocol (local EventEmitter + optional on-chain relay)',
+    recentMessages: log
+  });
+});
+
+/**
+ * GET /api/agents/session/:sessionId
+ * Get the Band bus message log for a specific session
+ */
+app.get('/api/agents/session/:sessionId', (req, res) => {
+  if (!agentPipeline) return res.status(503).json({ error: 'Not ready' });
+  const status = agentPipeline.getSessionStatus(req.params.sessionId);
+  res.json({ sessionId: req.params.sessionId, events: status });
+});
+
+// ─── Redis Endpoints ──────────────────────────────────────────────────────────
+
+/**
+ * GET /api/redis/stats
+ * Returns Redis-backed analytics: top domains, total verifications
+ */
+app.get('/api/redis/stats', async (req, res) => {
+  const stats = await redisClient.getRedisStats();
+  res.json(stats);
+});
+
+/**
+ * GET /api/redis/history/:userId
+ * Returns the Redis-stored verification history for a user
+ * (fast — no DB join required)
+ */
+app.get('/api/redis/history/:userId', authMiddleware, async (req, res) => {
+  // Ensure users can only access their own history
+  if (String(req.user.userId) !== String(req.params.userId)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  const history = await redisClient.getVerificationHistory(req.params.userId, 50);
+  res.json({ history, count: history.length });
+});
+
+/**
+ * POST /api/redis/logout
+ * Blacklists the current JWT token in Redis
+ */
+app.post('/api/redis/logout', authMiddleware, async (req, res) => {
+  const token = req.headers.authorization?.substring(7);
+  if (token) await redisClient.blacklistToken(token);
+  res.json({ success: true, message: 'Token invalidated' });
+});
+
+// ─── Arize Observability Endpoints ───────────────────────────────────────────
+
+/**
+ * GET /api/arize/status
+ * Returns Arize configuration and tracing status
+ */
+app.get('/api/arize/status', async (req, res) => {
+  const status = await arizeTracer.getArizeStatus();
+  res.json(status);
+});
+
+// ─── Browserbase Endpoints ────────────────────────────────────────────────────
+
+/**
+ * POST /api/browserbase/extract
+ * Extract claim-relevant evidence from any URL using Browserbase
+ * Used by the browser extension for enhanced verification
+ */
+app.post('/api/browserbase/extract', async (req, res) => {
+  try {
+    const { url, claim } = req.body;
+    if (!url || !claim) {
+      return res.status(400).json({ error: 'url and claim are required' });
+    }
+
+    // Rate limit by IP
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const { allowed } = await redisClient.checkRateLimit(`browserbase:${ip}`, 10, 60);
+    if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded' });
+
+    const result = await browserbaseFetcher.extractWebEvidence(url, claim);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/browserbase/search
+ * Search the web for papers using Browserbase
+ */
+app.post('/api/browserbase/search', async (req, res) => {
+  try {
+    const { claim, maxResults = 5 } = req.body;
+    if (!claim) return res.status(400).json({ error: 'claim is required' });
+
+    const links = await browserbaseFetcher.searchWebForEvidence(claim, maxResults);
+    res.json({ links, source: 'browserbase', enabled: browserbaseFetcher.isEnabled });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Server running on port ${PORT}`);
   console.log(`📊 Database: ${DATABASE_PATH ? 'Local SQLite' : 'Turso (remote)'}`);
   console.log(`🤖 AI Provider: Groq (${groqKeys.length} key(s) with rotation)`);
   console.log(`🔗 Health: http://localhost:${PORT}/health`);
-  console.log(`🔍 Search: http://localhost:${PORT}/api/search?query=black+holes\n`);
+  console.log(`🔍 Search: http://localhost:${PORT}/api/search?query=black+holes`);
+  console.log(`🤖 Agents: http://localhost:${PORT}/api/agents/status`);
+  console.log(`📦 Redis: ${redisClient.isConnected ? 'Connected' : 'Degraded (no Redis)'}`);
+  console.log(`🔭 Arize: ${arizeTracer.isEnabled ? 'Enabled' : 'Not configured'}\n`);
 });

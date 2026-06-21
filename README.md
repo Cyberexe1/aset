@@ -46,12 +46,8 @@
 [![Status](https://img.shields.io/badge/Status-Production-success)](https://www.aset-ai.tech)
 [![Papers](https://img.shields.io/badge/Papers-1.2M+-blue)](https://www.aset-ai.tech)
 [![Domains](https://img.shields.io/badge/Domains-8-purple)](https://www.aset-ai.tech)
-[![AWS](https://img.shields.io/badge/Deployed_on-AWS-orange)](https://www.aset-ai.tech)
-[![Hackathon](https://img.shields.io/badge/AWS_10K_AIdeas-Top_50_Finalist-gold)](https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE)
 
-**Top 50 Finalist — AWS 10,000 AIdeas Hackathon**
-
-[Live App](https://www.aset-ai.tech) · [AWS Builder Article](https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE) · [API Spec](https://api.aset-ai.tech/openapi.json)
+[Live App](https://www.aset-ai.tech) · [API Spec](https://api.aset-ai.tech/openapi.json)
 
 </div>
 
@@ -72,12 +68,14 @@ ASET stops AI hallucinations and misinformation by verifying scientific claims a
 - **Mode 1 — Single Claim**: Type any scientific claim, verified in under 200ms
 - **Mode 2 — YouTube**: Paste a YouTube URL — transcript extracted, every claim verified
 - **Mode 3 — Document**: Upload PDF, DOCX, or image (OCR) — all claims identified and verified
+- **Multi-Agent Pipeline**: 4 specialized agents (Research → Verification → Citation → Report) coordinated via Band Protocol
 - **Self-Growing DB**: Fetches from arXiv + PubMed when no local papers found, stores permanently
 - **Paper Search**: Search 1.2M+ papers by title/author/keyword — no login required
 - **8 Scientific Domains**: Space Science, Biology, Medicine, Chemistry, Physics, CS, Engineering + more
 - **1.2M+ Papers**: Pre-indexed with FTS5 for sub-200ms search
-- **Email OTP**: Password reset via AWS SES + Nodemailer
-- **Custom Domain**: https://aset-ai.com (Route 53 + ACM + CloudFront)
+- **Browser Extension**: Highlight any text on any webpage and verify instantly
+- **Email OTP**: Password reset via Nodemailer
+- **Citation Export**: APA, MLA, and IEEE formatted citations for every verification
 
 ---
 
@@ -85,35 +83,38 @@ ASET stops AI hallucinations and misinformation by verifying scientific claims a
 
 ```
 React Frontend (Vite)            Node.js Backend (Express)
-AWS CloudFront + S3              AWS App Runner (auto-scaling)
-https://aset-ai.com              https://dhhmp9ef9u.us-east-1.awsapprunner.com
+CloudFront CDN                   App Runner / Docker
+https://aset-ai.tech             https://api.aset-ai.tech
         │                                 │
         └────────── HTTPS API ────────────┘
+                                          │
+                            ┌─────────────────────────┐
+                            │     Agent Pipeline       │
+                            │  ResearchAgent           │
+                            │  VerificationAgent       │
+                            │  CitationAgent           │
+                            │  ReportAgent             │
+                            │  (Band Protocol bus)     │
+                            └─────────────────────────┘
                                           │
                                Turso (libSQL/SQLite + FTS5)
                                1.2M papers · 72 topics · 28 domains
                                           │
+                               Redis — agent memory, research cache,
+                               verification history, rate limiting
+                                          │
                                Groq LLaMA 3.3 70B
                                Claim extraction + verification
+                                          │
+                               Arize Phoenix — LLM observability,
+                               hallucination tracking, quality monitoring
+                                          │
+                               Browserbase — managed browser sessions
+                               for web evidence extraction
                                           │
                                arXiv OAI-PMH + PubMed E-utilities
                                Self-growing database
 ```
-
----
-
-## AWS Services
-
-| Service | Purpose | Details |
-|---------|---------|---------|
-| CloudFront | Global CDN + custom domain | aset-ai.com, 450+ edge locations |
-| S3 | Frontend static hosting | React SPA, versioned deployments |
-| App Runner | Auto-scaling backend | Scales to zero, HTTPS built-in |
-| ECR | Docker image registry | aset-backend repository |
-| Route 53 | DNS + domain registration | aset-ai.com, Alias records |
-| ACM | SSL certificate | TLSv1.2_2021, auto-renewal |
-| SES | Transactional email | OTP emails for password reset |
-| IAM | Access control | Least-privilege roles |
 
 ---
 
@@ -124,32 +125,130 @@ https://aset-ai.com              https://dhhmp9ef9u.us-east-1.awsapprunner.com
 | Frontend | React 19, Vite 7, globe.gl |
 | Backend | Node.js 22, Express |
 | Database | Turso (libSQL/SQLite) with FTS5 |
-| AI | Groq LLaMA 3.3 70B (dual-key rotation) |
-| Deployment | AWS App Runner + ECR + S3 + CloudFront |
+| Cache & Memory | Redis — research cache, agent memory, verification history |
+| AI | Groq LLaMA 3.3 70B (multi-key rotation) |
+| Agent Framework | Fetch.ai Agentverse (uAgents) |
+| Message Bus | Band Protocol (inter-agent relay) |
+| Observability | Arize Phoenix — LLM tracing, hallucination detection |
+| Web Fetch | Browserbase — managed browser sessions |
 | Auth | JWT + bcrypt + Email OTP |
-| Document Processing | pdf-parse v1, mammoth, tesseract.js |
-| YouTube | Supadata API (transcript extraction) |
+| Document Processing | pdf-parse, mammoth, tesseract.js |
+| YouTube | Multi-method transcript extraction (3 fallback strategies) |
+| Extension | Chrome Manifest V3 |
+
+---
+
+## Multi-Agent Pipeline
+
+ASET uses a 4-agent pipeline where each agent has a single responsibility and agents communicate via the Band Protocol message bus:
+
+```
+User Claim
+    │
+    ▼
+ResearchAgent        — searches 1.2M+ papers (local FTS + arXiv + PubMed)
+    │ Band: research.results
+    ▼
+VerificationAgent    — LLM stance classification per paper, verdict generation
+    │ Band: verification.done
+    ▼
+CitationAgent        — deduplicates sources, formats APA / MLA / IEEE citations
+    │ Band: citations.ready
+    ▼
+ReportAgent          — assembles final structured report, notifies caller
+```
+
+Trigger via:
+```bash
+POST /api/agents/pipeline   { "claim": "CRISPR can permanently edit the human genome" }
+```
+
+Agent status and message log:
+```bash
+GET /api/agents/status
+```
+
+---
+
+## Sponsor Integrations
+
+### Redis — Beyond Caching
+Redis powers agent memory, verification history, research result caching, rate limiting, and real-time analytics.
+
+```bash
+GET  /api/redis/stats              # top domains, total verifications
+GET  /api/redis/history/:userId    # fast verification history (no DB join)
+POST /api/redis/logout             # JWT token blacklist
+```
+
+### Fetch.ai Agentverse
+Four agents registered with the Agentverse mailbox — each accepts uAgents envelope format at its HTTP endpoint and can be discovered and messaged from other agents on the network.
+
+```
+POST /api/agents/research
+POST /api/agents/verification
+POST /api/agents/citation
+POST /api/agents/report
+```
+
+### Band Protocol
+The inter-agent message bus uses Band Protocol's relay model. In local mode it runs as an in-process EventEmitter; with `BAND_MNEMONIC` set it submits oracle data requests to the Band chain for on-chain message provenance.
+
+### Browserbase
+The browser extension's "Verify with ASET (+ web evidence)" option uses Browserbase to open a managed browser session on the current page, extract claim-relevant sentences, and include page-level evidence alongside paper citations.
+
+```bash
+POST /api/browserbase/extract    { "url": "...", "claim": "..." }
+POST /api/browserbase/search     { "claim": "..." }
+```
+
+### Arize Phoenix
+Every Groq LLM call is wrapped in an OpenTelemetry span sent to Arize Phoenix. Traces include hallucination risk signals (high confidence + empty evidence), confidence calibration checks, and per-paper stance classification metrics.
+
+```bash
+GET /api/arize/status
+```
 
 ---
 
 ## Live URLs
 
 - **App**: https://www.aset-ai.tech
-- **Backend**: https://api.aset-ai.tech
+- **API**: https://api.aset-ai.tech
 - **Health**: https://api.aset-ai.tech/health
 - **API Spec**: https://api.aset-ai.tech/openapi.json
+- **Agent Status**: https://api.aset-ai.tech/api/agents/status
 
 ---
 
 ## Local Development
 
 ```bash
+# Install dependencies
+npm install
+
 # Backend (port 3001)
 node backend/server-turso.js
 
 # Frontend (port 5173)
 cd "ASET frontend"
+npm install
 npm run dev
+```
+
+Required environment variables — copy `.env.example` to `.env` and fill in:
+
+```bash
+# Core
+TURSO_DATABASE_URL=...
+GROQ_API_KEY=...
+
+# Sponsor integrations (all optional — degrade gracefully if not set)
+REDIS_URL=redis://localhost:6379
+BROWSERBASE_API_KEY=...
+ARIZE_API_KEY=...
+BAND_MNEMONIC=...
+FETCHAI_RESEARCH_MAILBOX_KEY=...
 ```
 
 ---
@@ -169,31 +268,16 @@ node scripts/rebuild-fts.js
 
 ---
 
-## Deployment
+## Browser Extension
 
-```bash
-# Backend
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 058264278824.dkr.ecr.us-east-1.amazonaws.com
-docker build -t aset-backend .
-docker tag aset-backend:latest 058264278824.dkr.ecr.us-east-1.amazonaws.com/aset-backend:latest
-docker push 058264278824.dkr.ecr.us-east-1.amazonaws.com/aset-backend:latest
-aws apprunner start-deployment --service-arn arn:aws:apprunner:us-east-1:058264278824:service/aset-backend/013a3d1ba1874372990e36182c7d699d --region us-east-1
-
-# Frontend
-cd "ASET frontend" && npm run build
-aws s3 sync "ASET frontend/dist" s3://aset-frontend-prod-058264278824 --delete
-aws cloudfront create-invalidation --distribution-id E38WWI7NAQX84D --paths "/*"
-```
+Load unpacked from `aset-extension/` in Chrome. Right-click any selected text to:
+- **Verify with ASET** — standard verification against 1.2M+ papers
+- **Verify with ASET (+ web evidence)** — standard verification plus Browserbase page evidence extraction
 
 ---
 
-## Hackathon
+## Team
 
-ASET was built for the **AWS 10,000 AIdeas Hackathon** and selected as a **Top 50 Finalist** out of thousands of submissions.
-
-Judged on: Technical Innovation (34%) · Implementation Quality (33%) · Market Impact (33%)
-
-**Team ZeTech:**
-- Om Singh (jayom5797) — [AWS Builder](https://builder.aws.com/content/39cMiFMTs7dRujnZnJd6Rw0oqkE)
+- Om Singh (jayom5797)
 - Utsav Singh (utsavsingh35)
 - Vikas Tiwari (vikas2731)

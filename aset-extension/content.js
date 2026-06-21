@@ -46,7 +46,7 @@ function makeDraggable(el) {
   });
 }
 
-function showPanel({ claim, status, result, papers, message }) {
+function showPanel({ claim, status, result, papers, message, webEvidence, enhanced }) {
   // Remove existing panel
   if (panel) panel.remove();
 
@@ -68,7 +68,7 @@ function showPanel({ claim, status, result, papers, message }) {
   });
 }
 
-function buildPanelHTML({ claim, status, result, papers, message }) {
+function buildPanelHTML({ claim, status, result, papers, message, webEvidence, enhanced }) {
   const truncatedClaim = claim.length > 100 ? claim.substring(0, 100) + '...' : claim;
 
   let content = '';
@@ -96,6 +96,14 @@ function buildPanelHTML({ claim, status, result, papers, message }) {
       </div>
     `).join('');
 
+    const webEvidenceHtml = webEvidence?.evidence ? `
+      <div class="aset-papers-label">🌐 Page Evidence (Browserbase)</div>
+      <div class="aset-paper" style="border-color:rgba(99,102,241,0.3);background:rgba(99,102,241,0.05)">
+        <div class="aset-paper-title" style="color:rgba(255,255,255,0.7);font-weight:400;font-size:11px">${webEvidence.evidence.substring(0, 150)}...</div>
+        <div class="aset-paper-meta">from current page · Browserbase</div>
+      </div>
+    ` : '';
+
     content = `
       <div class="aset-score-row">
         <div class="aset-score" style="color:${color}">${score}%</div>
@@ -105,7 +113,8 @@ function buildPanelHTML({ claim, status, result, papers, message }) {
         <div class="aset-bar-fill" style="width:${score}%;background:${color}"></div>
       </div>
       ${result.summary ? `<p class="aset-summary">${result.summary.substring(0, 200)}${result.summary.length > 200 ? '...' : ''}</p>` : ''}
-      ${papersList ? `<div class="aset-papers-label">Supporting Papers</div>${papersList}` : ''}
+      ${papersList ? `<div class="aset-papers-label">📄 Supporting Papers</div>${papersList}` : ''}
+      ${webEvidenceHtml}
     `;
   }
 
