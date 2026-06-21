@@ -2,11 +2,13 @@ import React, { useState, useRef } from 'react';
 import logoIcon from '../assects/icons/satyamatrix.svg';
 import starIcon from '../assects/images/star.png';
 import { DocumentVerifier, YouTubeVerifier } from './DocumentVerifier';
+import AgentPipelineDemo from './AgentPipelineDemo';
 
 const MODES = [
   { id: 'claim',    label: '💬 Single Claim',  desc: 'Type a claim to verify' },
   { id: 'youtube',  label: 'YouTube',           desc: 'Verify a video transcript', isYT: true },
   { id: 'document', label: '📄 Document',       desc: 'Upload PDF, DOCX, or image' },
+  { id: 'agents',   label: '🤖 Agent Pipeline', desc: '4-agent multi-agent verification', isNew: true },
 ];
 
 const suggestionCards = [
@@ -108,7 +110,8 @@ const WelcomeScreen = ({ userName, onSendMessage }) => {
               letterSpacing: '0.3px',
               display: 'flex',
               alignItems: 'center',
-              gap: 6
+              gap: 6,
+              position: 'relative'
             }}
           >
             {m.isYT ? (
@@ -118,6 +121,13 @@ const WelcomeScreen = ({ userName, onSendMessage }) => {
               </svg>
             ) : null}
             {m.isYT ? 'YouTube' : m.label}
+            {m.isNew && (
+              <span style={{
+                background: 'rgba(99,102,241,0.8)', color: '#fff',
+                fontSize: 9, fontWeight: 700, padding: '1px 5px',
+                borderRadius: 4, letterSpacing: '0.5px'
+              }}>NEW</span>
+            )}
           </button>
         ))}
       </div>
@@ -191,6 +201,13 @@ const WelcomeScreen = ({ userName, onSendMessage }) => {
       {mode === 'document' && (
         <div style={{ width: '100%', maxWidth: 720, margin: '0 auto', padding: '0 16px', position: 'relative', zIndex: 1 }}>
           <DocumentVerifier />
+        </div>
+      )}
+
+      {/* Mode 4: Agent Pipeline */}
+      {mode === 'agents' && (
+        <div style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: '0 16px', position: 'relative', zIndex: 1 }}>
+          <AgentPipelineDemo />
         </div>
       )}
     </div>

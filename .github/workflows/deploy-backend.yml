@@ -25,5 +25,31 @@ jobs:
             cd /home/ubuntu/aset
             git pull origin main
             npm install --omit=dev
-            pm2 restart aset-backend || pm2 start backend/server-turso.js --name aset-backend
+            pm2 restart aset-backend || pm2 start backend/server-turso.js --name aset-backend \
+              --env production
             pm2 save
+          envs: |
+            TURSO_DATABASE_URL=${{ secrets.TURSO_DATABASE_URL }}
+            TURSO_AUTH_TOKEN=${{ secrets.TURSO_AUTH_TOKEN }}
+            GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+            GROQ_API_KEY_2=${{ secrets.GROQ_API_KEY_2 }}
+            GROQ_API_KEY_3=${{ secrets.GROQ_API_KEY_3 }}
+            GROQ_API_KEY_4=${{ secrets.GROQ_API_KEY_4 }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            GMAIL_USER=${{ secrets.GMAIL_USER }}
+            GMAIL_APP_PASSWORD=${{ secrets.GMAIL_APP_PASSWORD }}
+            NASA_ADS_API_KEY=${{ secrets.NASA_ADS_API_KEY }}
+            REDIS_URL=${{ secrets.REDIS_URL }}
+            BROWSERBASE_API_KEY=${{ secrets.BROWSERBASE_API_KEY }}
+            BROWSERBASE_PROJECT_ID=${{ secrets.BROWSERBASE_PROJECT_ID }}
+            ARIZE_API_KEY=${{ secrets.ARIZE_API_KEY }}
+            ARIZE_SPACE_ID=${{ secrets.ARIZE_SPACE_ID }}
+            ARIZE_MODEL_ID=aset-verification
+            ARIZE_MODEL_VERSION=2.0.0
+            BAND_MNEMONIC=${{ secrets.BAND_MNEMONIC }}
+            FETCHAI_RESEARCH_MAILBOX_KEY=${{ secrets.FETCHAI_RESEARCH_MAILBOX_KEY }}
+            FETCHAI_VERIFICATION_MAILBOX_KEY=${{ secrets.FETCHAI_VERIFICATION_MAILBOX_KEY }}
+            FETCHAI_CITATION_MAILBOX_KEY=${{ secrets.FETCHAI_CITATION_MAILBOX_KEY }}
+            FETCHAI_REPORT_MAILBOX_KEY=${{ secrets.FETCHAI_REPORT_MAILBOX_KEY }}
+            NODE_ENV=production
+            PORT=3001

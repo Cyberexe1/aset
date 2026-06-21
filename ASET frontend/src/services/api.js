@@ -175,5 +175,44 @@ export const api = {
       throw new Error(err.error || 'YouTube processing failed');
     }
     return response.json();
+  },
+
+  // Multi-agent pipeline — Research → Verification → Citation → Report
+  runAgentPipeline: async (claim, userId = null) => {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/agents/pipeline`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ claim, userId })
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Pipeline failed' }));
+      throw new Error(err.error || 'Agent pipeline failed');
+    }
+    return response.json();
+  },
+
+  // Agent pipeline status
+  getAgentStatus: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/agents/status`);
+    if (!response.ok) throw new Error('Could not fetch agent status');
+    return response.json();
+  },
+
+  // Redis stats
+  getRedisStats: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/redis/stats`);
+    if (!response.ok) throw new Error('Could not fetch Redis stats');
+    return response.json();
+  },
+
+  // Arize status
+  getArizeStatus: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/arize/status`);
+    if (!response.ok) throw new Error('Could not fetch Arize status');
+    return response.json();
   }
 };

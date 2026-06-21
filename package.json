@@ -21,8 +21,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@arizeai/openinference-semantic-conventions": "^0.3.0",
     "@distube/ytdl-core": "^4.16.12",
     "@libsql/client": "^0.15.15",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.52.1",
+    "@opentelemetry/sdk-trace-base": "^1.25.1",
+    "@opentelemetry/sdk-trace-node": "^1.25.1",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.6.2",
     "canvas": "^3.2.3",
